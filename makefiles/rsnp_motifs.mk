@@ -34,8 +34,8 @@ SOI_OUT=${RESULT_DIR}/${PREFIX}
 
 
 ## Variation-scan 
-
-MATRIX=${RSAT}/public_html/data/motif_databases/JASPAR/Jaspar_2018/nonredundant$/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.tf
+MATRIX=${RSAT}/public_html/motif_databases/JASPAR/Jaspar_2018/nonredundant/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.tf
+#MATRIX=${RSAT}/public_html/data/motif_databases/JASPAR/Jaspar_2018/nonredundant$/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.tf
 PVAL=0.1
 PVAL_RATIO=2
 BG_MODEL=${RSAT}/public_html/demo_files/all_human_ENCODE_DNAse_mk1_bg.ol
@@ -73,9 +73,10 @@ VAR_INFO_CMD=variation-info -v ${V}\
 varinfo:
 	@echo
 	@echo "Running var-info on snps of interest (SOI)"
-	@mkdir -p ${SOI_DIR}
-	@echo "	SOI_DIR	${SOI_DIR}"
-	@echo "	SOI_IDS	${SOI_IDS}"
+	@echo "	SOI_DIR		${SOI_DIR}"
+	@echo "	RESULT_DIR	${RESULT_DIR}"
+	@mkdir -p ${RESULT_DIR}
+	@echo "	SOI_IDS		${SOI_IDS}"
 	@echo ""
 	@echo "Getting variation information from variant IDs"
 	@echo "SOI_IDS	${SOI_IDS}"
@@ -89,38 +90,46 @@ RETRIEVE_VAR_CMD=retrieve-variation-seq  \
 	-v ${V} \
 	-species ${SPECIES} \
 	-assembly ${ASSEMBLY} \
-
-RETRIEVE_VAR_CMD_VARBED=${RETRIEVE_VAR_CMD} \
-	-i ${RESULT_DIR}/${SOI_OUT}.varBed \
+	-i ${SOI_OUT}.varBed \
 	-mml 30 -format varBed \
-	-o ${RESULT_DIR}/${SOI_OUT}.varSeq
+	-o ${SOI_OUT}.varSeq
 
 retrieve_varseq:
 	@echo ""
 	@echo "Retrieving variation sequences from variation info file"
-	@echo "Input file	${RESULT_DIR}/${SOI_OUT}.varBed"
+	@echo "Input file	${SOI_OUT}.varBed"
 	@echo "${RETRIEVE_VAR_CMD}"
 	@${RETRIEVE_VAR_CMD}
-	@echo "	${RESULT_DIR}/${SOI_OUT}.varSeq"
+	@echo "	${SOI_OUT}.varSeq"
 
 ###############################################################
 ## ## Scan selected variations with the matrix of interest
 
 PVAL=0.001
 PVAL_RATIO=10
-BG_MODEL=public_html/demo_files/all_human_ENCODE_DNAse_mk1_bg.ol
-VARSCAN_RES=${RESULT_DIR}/${SOI_OUT}_varscan_pval${PVAL}_pvalratio${PVAL_RATIO}
-
+#BG_MODEL=${RSAT}/public_html/demo_files/all_human_ENCODE_DNAse_mk1_bg.ol
+BG_MODEL=${RSAT}/public_html/data/genomes/${SPECIES}_${ASSEMBLY}/oligo-frequencies/2nt_upstream-noorf_${SPECIES}_${ASSEMBLY}-noov-1str.freq.gz
+VARSCAN_RES=${SOI_OUT}_varscan_pval${PVAL}_pvalratio${PVAL_RATIO}
 
 VARSCAN_CMD=variation-scan -v ${V} \
-	-i ${RESULT_DIR}/${SOI_OUT}.varSeq \
-	-m ${MATRIX} -bg ${BG_MODEL} \
+	-i ${SOI_OUT}.varSeq \
+	-m ${MATRIX} -m_format transfac \
+	-bg ${BG_MODEL} \
+	-lth score 1 -lth w_diff 1 \
 	-uth pval ${PVAL} \
 	-lth pval_ratio ${PVAL_RATIO} \
-	-o ${VARSCAN_RES}.tab
+	-o ${VARSCAN_RES}.tsv
+
+
+#variation-scan -v 1 -m $RSAT/public_html/tmp/apache/2018/06/18/variation-scan_2018-06-18.183854_KDlwmAvariation-scan_sequence_custom_motif_manualinput.tf -m_format transfac -i $RSAT/public_html/tmp/apache/2018/06/18/variation-scan_2018-06-18.183854_KDlwmAvariation-scan_sequence_input -bg $RSAT/public_html/tmp/apache/2018/06/18/variation-scan_2018-06-18.183854_KDlwmA_bgfile.txt -lth score 1 -lth w_diff 1 -lth pval_ratio 10 -uth pval 1e-3 
+
 
 variation_scan:
+	@echo
+	@echo "Scanning variant sequences for rSNPs"
+	@echo "	Input file	${SOI_OUT}.varSeq"
+	@echo "	Output file	${VARSCAN_RES}.tsv"
 	@echo "${VARSCAN_CMD}"
 	@${VARSCAN_CMD}
 	@echo "Output file"
-	@echo "	${VARSCAN_RES}.tab"                                                                          
+	@echo "	${VARSCAN_RES}.tsv"                                                                          
