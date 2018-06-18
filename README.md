@@ -1,2 +1,3 @@
-# malaria_rSNPs
-Analysis of SNPS involved in human sensitivity to malaria
+# Malaria rSNP project
+
+Analysis of regulatory SNPs associated to malaria sensitivity in Human.
