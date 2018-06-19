@@ -27,7 +27,7 @@ WGET=wget --passive-ftp -np -rNL
 
 ## Input and output files directory
 SOI_DIR=results/SOIs
-PREFIX=snps_of_interest_top10
+PREFIX=snps_of_interest
 SOI_IDS=${SOI_DIR}/${PREFIX}.txt
 RESULT_DIR=results/SOI_motifs
 SOI_OUT=${RESULT_DIR}/${PREFIX}

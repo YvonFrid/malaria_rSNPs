@@ -1,0 +1,35 @@
+digraph {
+
+	## General properties of the graph (font, color, ...)
+	graph [fontname="ArialBlack",fontsize="14", label="GENE-WISE APPROACH" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2"];
+	edge [fontname="ArialMT",fontsize="10",labelfontname="ArialMT",labelfontsize="10", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="10",shape=record,height="0.2", color="#666666"];
+
+	
+	## Rechearch of candidate SNPs
+	disease_associated [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{Disease associated genes}"];
+	
+
+	## 1000 genomes
+	disease_associated -> goi
+
+	goi [shape="record", style="filled", fillcolor="#FFEEDD", label="{Genes Of Interest (GOIs)}"];
+
+	goi -> remap
+
+	remap [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{ReMap, Encode}", URL="http://tagc.univ-mrs.fr/remap/", fontcolor="#0D73A7"];
+
+	remap -> promoters
+
+	promoters [shape="record", style="filled", fillcolor="#FFEEDD", label="{Functional Promoters + Enhancers}"];
+	
+	promoters -> roi
+	
+
+	roi [shape="record", style="filled", fillcolor="#FFEEDD", label="{Regulon Of Interest (ROIs)}"];
+
+	roi -> soi
+
+	soi [shape="record", style="filled", fillcolor="#FFEEDD", label="{SNPs Of Interest (SOIs)}"];
+
+}

@@ -1,0 +1,7 @@
+*.pdf
+*.png
+*.eps
+*.jpg
+.RData
+.Rapp.history
+.Rhistory
