@@ -64,8 +64,8 @@ VAR_INFO_CMD=variation-info -v ${V}\
 	-i ${SOI_IDS} \
 	-format id \
 	-o ${SOI_OUT}.varBed ${OPT} \
-	1> ${SOI_OUT}_stdout.txt \
-	2> ${SOI_OUT}_error_log.txt
+	1> ${SOI_OUT}_varBed_stdout.txt \
+	2> ${SOI_OUT}_varBed_stderr.txt
 
 #	${SPECIES_SUFFIX_OPT} ${OPT}
 
@@ -92,7 +92,9 @@ RETRIEVE_VAR_CMD=retrieve-variation-seq  \
 	-assembly ${ASSEMBLY} \
 	-i ${SOI_OUT}.varBed \
 	-mml 30 -format varBed \
-	-o ${SOI_OUT}.varSeq
+	-o ${SOI_OUT}.varSeq \
+	1> ${SOI_OUT}_varSeq_stdout.txt \
+	2> ${SOI_OUT}_varSeq_stderr.txt
 
 retrieve_varseq:
 	@echo ""
@@ -118,8 +120,9 @@ VARSCAN_CMD=variation-scan -v ${V} \
 	-lth score 1 -lth w_diff 1 \
 	-uth pval ${PVAL} \
 	-lth pval_ratio ${PVAL_RATIO} \
-	-o ${VARSCAN_RES}.tsv
-
+	-o ${VARSCAN_RES}.tsv \
+	1> ${VARSCAN_RES}_tsv_stdout.txt \
+	2> ${VARSCAN_RES}_tsv_stderr.txt
 
 #variation-scan -v 1 -m $RSAT/public_html/tmp/apache/2018/06/18/variation-scan_2018-06-18.183854_KDlwmAvariation-scan_sequence_custom_motif_manualinput.tf -m_format transfac -i $RSAT/public_html/tmp/apache/2018/06/18/variation-scan_2018-06-18.183854_KDlwmAvariation-scan_sequence_input -bg $RSAT/public_html/tmp/apache/2018/06/18/variation-scan_2018-06-18.183854_KDlwmA_bgfile.txt -lth score 1 -lth w_diff 1 -lth pval_ratio 10 -uth pval 1e-3 
 
