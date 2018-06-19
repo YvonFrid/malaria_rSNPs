@@ -1,0 +1,194 @@
+digraph {
+
+	## General properties of the graph (font, color, ...)
+	graph [fontname="ArialBlack",fontsize="14", label="SNP-WISE APPROACH" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2"];
+	edge [fontname="ArialMT",fontsize="10",labelfontname="ArialMT",labelfontsize="10", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="10",shape=record,height="0.2", color="#666666"];
+
+	subgraph cluster_0 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "Candidate SNPs";
+		style="rounded";
+
+	## Rechearch of candidate SNPs
+	disgenet [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{DisGeNet}", URL="http://www.disgenet.org/web/DisGeNET/menu/browser/tab22?3&pview=default&pf=http://www.disgenet.org/web/DisGeNET%3Fdata/diseases::C0024530::de&pf=/data/sources::ALL::de", fontcolor="#0D73A7"];
+	tag_snps  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease associated SNPs|Tag SNPs}"];
+	}
+
+	disgenet -> tag_snps
+
+	subgraph cluster_1 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "1000 Genomes";
+		style="rounded";
+
+	## 1000 genomes
+	tag_snps ->  g1000
+	g1000 [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{LD analysis (AFR LD)}", URL="ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp", fontcolor="#0D73A7"];
+	
+	}
+
+	g1000 -> soi
+
+	soi [shape="record", style="filled", fillcolor="#FFEEDD", label="{SNPs in linkage disequilibrium with the Tag SNPs | SNPs Of Interest (SOIs)}"];
+
+	soi -> and 
+
+	and  [shape="record", style="rounded,filled", fillcolor="#FFFFFF", label="{AND}"];
+
+	soi -> varinfo
+
+	varinfo[shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{variation-info}", fontcolor="#0D73A7"];
+
+	varinfo -> ldsnp
+
+	ldsnp [shape="record", style="filled", fillcolor="#FFEEDD", label="{LD SOIs hg38| bed format}"];
+
+	ldsnp -> roken
+	ldsnp -> ucsc
+
+
+subgraph cluster_7 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "UCSC";
+		style="rounded";
+
+		## d’UCSC Genome Browser 
+		ucsc[shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{Genome Browser | UCSC}", URL="https://genome.ucsc.edu/cgi-bin/hgTables", fontcolor="#0D73A7"];
+		ucsc -> ensembl
+		ensembl [shape="record", style="filled", fillcolor="#FFEEDD", label="{variant effect predictor| tab }"];
+				}
+
+	ensembl -> and
+	
+subgraph cluster_8 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "ROKEN";
+		style="rounded";
+
+		roken [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{ROKEN}", fontcolor="#0D73A7"];
+	
+
+		remapcatalogue [shape="record", style="rounded,filled", fillcolor="#CCCC99", label="{ReMap catalogue}", URL="http://tagc.univ-mrs.fr/remap/index.php?page=download/", fontcolor="#0D73A7"];
+
+	remapcatalogue -> roken
+	roken -> tfenrichissment
+
+	tfenrichissment [shape="record", style="filled", fillcolor="#FFEEDD", label="{TF enrichissments}"];
+
+		}
+	
+subgraph cluster_2 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "HaploReg";
+		style="rounded";
+
+	## HaploReg
+	tag_snps ->  haploreg
+	haploreg [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{LD analysis (AFR LD)}", URL="http://archive.broadinstitute.org/mammals/haploreg/haploreg.php", fontcolor="#0D73A7"];
+	}
+
+	haploreg -> soi
+
+
+ldsnp -> remap
+
+
+		## REMAP
+subgraph cluster_3 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "ReMap";
+		style="rounded";
+
+		remap[shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{Genome-wide TF binding location (ChIP-seq)}", URL="http://tagc.univ-mrs.fr/remap/", fontcolor="#0D73A7"];
+		remap -> snp_TF_candidates
+		snp_TF_candidates [shape="record", style="filled", fillcolor="#FFEEDD", label="{Candidate variation-bound TFs| bed }"];
+	}
+
+	snp_TF_candidates -> and
+
+	
+	
+	subgraph cluster_4 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "ENCODE";
+		style="rounded";
+
+		## ENCODE
+
+		encode[shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{Encyclopedia of DNA Elements}", URL="https://www.encodeproject.org", fontcolor="#0D73A7"];
+		encode -> enhancers
+		enhancers [shape="record", style="filled", fillcolor="#FFEEDD", label="{Functional Promoters + Enhancers}"];	
+	}
+
+enhancers -> and
+and -> roi
+
+	roi [shape="record", style="filled", fillcolor="#FFEEDD", label="{Regulon Of Interest (ROIs)}"];
+
+	roi -> tss
+
+	tss [shape="record", style="filled", fillcolor="#FFEEDD", label="{Gene-SNP-TSS}"];
+
+	tss -> bedtools
+
+	bedtools [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{bedtools intersect}", fontcolor="#0D73A7"];
+
+	bedtools -> gff
+
+	gff [shape="record", style="filled", fillcolor="#FFEEDD", label="{discarding all the SNPs found in CDS (found in the GFF files)}"];
+
+	gff-> bed_results
+
+	bed_results [shape="record", style="filled", fillcolor="#FFEEDD", label="{Non-coding SNPs in super-enhancers | IDs, VCF format}"];
+
+
+
+	bed_results -> variation_info
+
+	subgraph cluster_5 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "RSAT";
+		style="rounded";
+
+	## variation-info
+	variation_info [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{Coordinate list of SNP IDs| variation-info}", URL="http://rsat.sb-roscoff.fr/variation-info_form.cgi", fontcolor="#0D73A7"];
+	variation_info -> snp_info
+	snp_info [shape="record", style="filled", fillcolor="#FFEEDD", label="{SNP coordinates | tab-delimited }"];
+
+	snp_info -> retrieve_variation_seq
+
+	## retrieve-variation-seq
+	retrieve_variation_seq  [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{SNP sequences retrieval | retrieve-variation-seq}", URL="http://rsat.sb-roscoff.fr/retrieve-variation-seq_form.cgi", fontcolor="#0D73A7"];
+	retrieve_variation_seq -> snp_seq
+	snp_seq  [shape="record", style="filled", fillcolor="#FFEEDD", label="{SNP sequences | tab-delimited }"];
+	
+	snp_seq -> variation_scan
+
+
+	## variation-scan
+	variation_scan   [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{SNP sequence scanning | variation-scan}", URL="http://rsat.sb-roscoff.fr/variation-scan_form.cgi", fontcolor="#0D73A7"];
+	
+	variation_scan -> candidate_rsnps
+
+	candidate_rsnps   [shape="record", style="filled", fillcolor="#FFEEDD", label="{Candidate rSNPS | tab-delimited }"];
+	
+
+	
+	## Jaspar matrice database
+	jaspar_matrices  [shape="record", style="rounded,filled", fillcolor="#CCCC99", label="{TFBM collection | JASPAR}", URL="http://jaspar.genereg.net/", fontcolor="#0D73A7"];
+	
+
+	jaspar_matrices -> variation_scan
+	}
+
+
+}
