@@ -4,3 +4,7 @@ figures
 Icon
 .DS_Store
 .Rproj.user
+R_Notebook.nb.html
+malaria_rsnp.html
+malaria_rsnp.pdf
+.Rhistory
