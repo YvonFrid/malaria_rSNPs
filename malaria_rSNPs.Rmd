@@ -7,6 +7,11 @@ author:
 #date: 'Last update: `r Sys.Date()`'
 date: Last update:`r format(Sys.time())`
 output:
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -17,11 +22,6 @@ output:
     toc_depth: 3
     toc_float: yes
   word_document: default
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
 editor_options: 
   chunk_output_type: console
 ---
@@ -36,7 +36,6 @@ library(gridExtra)
 library(cowplot)
 library(dplyr) 
 library(tidyr)
-library(DT)
 library(VennDiagram)
 library(writexl)
 library(stringr)
@@ -46,11 +45,13 @@ library(reticulate)
 library(haploR)
 library(RMySQL)
 library(GEOquery)
-#library(biomaRt)
 library(gProfileR)
 library(lattice)
 library(qqman)
-#library(RDAVIDWebService)
+library(readr)
+library(httr)
+library(jsonlite)
+library(xml2)
 ```
 
 
@@ -96,18 +97,10 @@ dir.path <- list(disgenet = "disgenet",
                  haploreg ="haploreg",
                  gprofiler = "gprofiler",
                  david = "david",
-                # biomart = "biomart",
                  phenotype = "phenotype",
                  ucsc = "ucsc",
                  SOIs = "SOIs",
                  SOI_motifs = "SOI_motifs")
-
-# Create the dir main for SNPs of interest (SOIs)
-# dir.results <- "data"
-# dir <- file.path(dir.main, dir.results)
-# dir.path <-  list(SOIs = "SOIs",
-#                   bed = "bed")
-
 
 for (name in dir.path) {
   dir.create(file.path(dir,name), showWarnings = FALSE, recursive = TRUE)
@@ -171,7 +164,6 @@ for (flowchart in c("flowchart/gene_wise_approach", "flowchart/snp_wise_approach
 ```{r fig.cap="Flow chart of the gene-wise approach. "}
 knitr::include_graphics(paste(sep="", "flowchart/gene_wise_approach.", parameters["flowchart.format"]))
 ```
-
 
 ## SNP-wise approach
 
@@ -469,6 +461,7 @@ write.table(x = display.table,
             file = paste(dir, "disgenet", data.file, sep = "/"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 ```
 
+
 ```{r venn_diagram_disgenet}
 grid.newpage()
 draw.triple.venn(area1 = length(display.table1$rsID), 
@@ -478,16 +471,16 @@ draw.triple.venn(area1 = length(display.table1$rsID),
                  n23 = length(intersect(display.table2$rsID, display.table3$rsID)),
                  n13 = length(intersect(display.table1$rsID, display.table3$rsID)),
                  n123 = length(intersect(intersect(display.table1$rsID, display.table2$rsID), display.table3)),
-                category = c("All phenotypes", 
-    "Cerebral malaria", "Mild malaria"),    
-                fill = c("orange",  "green", "red"), 
-                lty = "blank",
-                cex = 1, 
-                cat.cex = 1, 
-                margin = 0.1,
-                cat.col = c("orange","green","red"),
-                scaled=TRUE, 
-                ext.text = FALSE)
+                 category = c("All phenotypes", 
+                              "Cerebral malaria", "Mild malaria"),    
+                 fill = c("orange",  "green", "red"), 
+                 lty = "blank",
+                 cex = 1, 
+                 cat.cex = 1, 
+                 margin = 0.1,
+                 cat.col = c("orange","green","red"),
+                 scaled=TRUE, 
+                 ext.text = FALSE)
 ```
 
 
@@ -504,14 +497,14 @@ gwas2014 <-
          rsID,
          Disease)
 
-kable(head(gwas2014))
-
 ## Export the full result table
 
- gwas.file <- "gwas2014.tsv"
+gwas.file <- "gwas2014.tsv"
 gwas.path <- file.path(dir.path["gwas.2014"], gwas.file)
 write.table(x = table.gwas2014,
             file = paste(dir, "gwas.2014", gwas.file, sep = "/"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+
+kable(head(gwas2014))
 ```
 
 
@@ -547,12 +540,14 @@ gwas2018b <-
 gwas2018 <- rbind(gwas2018a, gwas2018b)
 
 ## Export the full result table 
- gwas.file <- "gwas2018.tsv"
+gwas.file <- "gwas2018.tsv"
 gwas.path <- file.path(dir.path["gwas.2018"], gwas.file)
 write.table(x = gwas2018,
             file = paste(dir, "gwas.2018", gwas.file, sep = "/"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 
+kable(head(gwas2018))
 ```
+
 
 ```{r gwas2014_vs_gwas2018}
 # Combine all tables from to GWAS 2014 and GWAS 2018
@@ -582,8 +577,8 @@ draw.pairwise.venn(length(gwas2014$rsID),
 
 ### Merging the DisGenet SNPs lists, GWAS 2014 and 2018
 
-  - We are the list obtained with all SNPs detected in at least 1 of the three sources.
-  - Then single sort to remove redundancy.
+- We are the list obtained with all SNPs detected in at least 1 of the three sources.
+- Then single sort to remove redundancy.
 
 
 ```{r disgenet_vs_gwas}
@@ -607,9 +602,9 @@ kable(head(tag.gene.snps))
 ```
 
 **GEN-SNP-wise result table of  malaria: [`r gene_snp.file`](`r gene_snp.path`)**
-
-
-
+  
+  
+  
 ```{r venn_diagram_disgenet_gwas}
 ## Venn diagram between gwas 2014 and 2018
 grid.newpage()
@@ -626,23 +621,8 @@ draw.triple.venn(area1 = length(gwas2014$rsID),
                  cex = 1, 
                  cat.cex = 1, 
                  cat.col = c("orange", "red", "green")
-                 )
+)
 ```
-
-
-
-# SNPs associated with different malaria phenotypes from to GWAS Catalogue
-
-We download the GWAS malaria catalogue here:
-http://www.ebi.ac.uk/gwas/search?query=Malaria#association.
-
-The purpose of this section is to collect all the SNPs associated with the different phenotypes of malaria from to differents malaria studies. 
-
-```{r gwas_catalog}
-gwas_catalog <- read.delim(file = 'data/gwas_catalog/gwas_association_malaria.tsv', header = TRUE, sep = "\t")
-
-```
-
 
 
 
@@ -653,17 +633,16 @@ gwas_catalog <- read.delim(file = 'data/gwas_catalog/gwas_association_malaria.ts
 tag.snps <- unique(as.data.frame(tag.gene.snps$rsID[grepl("^[rs]+[0-9]", tag.gene.snps$rsID)]))
 
 
-#head(tag.snps1)
-
 tag.snp.file <- "tag.snps.txt"
 tag.snp.path <- file.path(dir.path["TagSNPs"], tag.snp.file)
 write.table(x = tag.snps,
             file = paste( dir,"TagSNPs",tag.snp.file, sep = "/" ), quote = FALSE, sep = "\t", 
             row.names = FALSE, col.names = FALSE)
+
+kable(head(tag.snps))
 ```
 
 **We collected a set of the `r length (tag.snps)` Tag SNPs associated with different malaria phenotypes: [`r tag.snp.file`](`r tag.snp.path`)**
-
 
 
 # Haplotype collection
@@ -752,130 +731,27 @@ knitr::include_graphics("data/ReMap/barplot.png")
 
 ```
 
-# Pattern analysis with RSAT
+  
 
+# Linkage desequilibrium using 1000 Genomes project
 
+We used the R API for ENSEMBL (https://rest.ensembl.org/documentation/info/variation_id) 
+  
+Uses a variant identifier (e.g. rsID) to return the variation features including optional genotype, phenotype and population data
 
-# Biomart
-We used Biomart for to generate ENSEMBL gene IDS format (required for gene functional annotation on DAVID web server).
+```{r}
+rsID <- as.list(tag.snps)
 
-```{r geo}
-# Installation
-## try http:// if https:// URLs are not supported
-## source("https://bioconductor.org/biocLite.R")
-## biocLite("GEOquery")
-## biocLite("GenomicFeatures")
-## biocLite("AnnotationDbi")
-
-# Selecting a BioMart database and dataset
-
-
-#listMarts() # to connect to a specified BioMart database
-#ensembl=useMart("ensembl") # Choose to query the Ensembl BioMart database.
-#listDatasets(ensembl) # Look at which datasets are available in the selected BioMart
-#ensembl = useDataset("hsapiens_gene_ensembl", mart=ensembl) # Selection of the homo sapiens gene Ensembl as dataset
-#ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
-
-# To build a biomaRt query
-#filters = listFilters(ensembl) # All available filters (restriction on the query) in the selected dataset
-
-## To define the values interested in to retrieve
-#attributes = listAttributes(ensembl) # I will use ensembl_gene_id.
-
-
-# mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
-# refseq <- unique(tag.snps.vs.ld.haploreg$RefSeq_id)
-# refseq.id <- getBM(
-#                     filters="refseq_mrna",
-#                     attributes=c("hgnc_symbol","ensembl_gene_id","chromosome_name", "band", "refseq_mrna", "entrezgene", "go_id", "interpro_description"),
-#                     values=refseq,
-#                     mart=mart)
-# 
-# ## Export the full result table
-# biomart.data <- "gene.vs.biomart.tsv"
-# biomart.path <- file.path(dir.path["biomart"], biomart.data)
-# write.table(x = refseq.id,
-#             file = paste(dir,"biomart", biomart.data, sep = "/"), 
-#             quote = FALSE, sep = "\t",
-#             row.names = FALSE, col.names = FALSE)
-# 
-# 
-# kable(head(refseq.id))
+server <- "https://rest.ensembl.org"
+ext <- "/variation/human/rsID?phenotypes=1"
+ 
+r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+ 
+stop_for_status(r)
+ 
+# use this if you get a simple nested list back, otherwise inspect its structure
+# head(data.frame(t(sapply(content(r),c))))
+head(fromJSON(toJSON(content(r))))
 ```
-
-
-## Functional annotation using DAVID
-
-```{r david}
-# ## Selection of Ensemble gene ids from to biomart
-# ensembl_gene_id <- unique(refseq.id$ensembl_gene_id)
-# 
-# ## Export the full result table
-# david.data <- "esembl_gene_ids_from_biomart.txt"
-# david.path <- file.path(dir.path["david"], david.data)
-# write.table(x = ensembl_gene_id,
-#             file = paste(dir,"david", david.data, sep = "/"), 
-#             quote = FALSE, sep = "\t",
-#             row.names = FALSE, col.names = FALSE)
-
-## Run david functional annotation
-
-## RDAVIDWebService requires a registered DAVID user
-#david<-DAVIDWebService$new(email="fridyvon@gmail.com")
-
-## Run RDAVIDWebService by ensembl gene IDs from biomart
-# data(ensembl_gene_id)
-# ensembl.gene.vs.david <-addList(david, ensembl_gene_id,
-#                         idType="ENSEMBLE_GENE_ID",
-#                         listName="ensembl_gene_id", listType="Gene")
-
-
-```
-
-
-## Functional annotation using g:Profiler
-
-The g:Profiler is an tool for finding enrichments in gene lists.
-
-
-```{r gprofiler}
-
-#gene.ids <- as.list(unique(tag.snps.vs.ld.haploreg$GENCODE_name))
-
-# gene.vs.gprofiler <- gprofiler(ensembl_gene_id, 
-#                                organism = "hsapiens", 
-#                                sort_by_structure = T,
-#                                ordered_query = T, 
-#                                significant = T, 
-#                                exclude_iea = F, 
-#                                underrep = F,
-#                                evcodes = F, 
-#                                region_query = F, 
-#                                max_p_value = 1, 
-#                                min_set_size = 0,
-#                                max_set_size = 0, 
-#                                min_isect_size = 0, 
-#                                correction_method = "analytical",
-#                                hier_filtering = "none", 
-#                                domain_size = "annotated", 
-#                                custom_bg = "",
-#                                numeric_ns = "", 
-#                                png_fn = NULL, 
-#                                include_graph = F, 
-#                                src_filter = NULL)
-# 
-# ## Export the full result table
-# gprofiler.data <- "gene.vs.gprofiler.tsv"
-# gprofiler.path <- file.path(dir.path["gprofiler"], gprofiler.data)
-# write.table(x = gene.vs.gprofiler,
-#             file = paste(dir,"gprofiler", gprofiler.data, sep = "/"), 
-#             quote = FALSE, sep = "\t",
-#             row.names = FALSE, col.names = FALSE)
-# 
-# kable(head(gene.vs.gprofiler))
-
-```
-
-
 
 
