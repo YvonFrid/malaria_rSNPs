@@ -46,7 +46,7 @@ library(reticulate)
 library(haploR)
 library(RMySQL)
 library(GEOquery)
-library(biomaRt)
+#library(biomaRt)
 library(gProfileR)
 library(lattice)
 library(qqman)
@@ -78,7 +78,7 @@ parameters <- list(
 
 
 
-```{r configuration, eval=TRUE}
+```{r configuration}
 ## Main directory
 dir.main <- '~/Google\ Drive/These_Yvon_2018/malaria_rSNPs'
 
@@ -96,7 +96,7 @@ dir.path <- list(disgenet = "disgenet",
                  haploreg ="haploreg",
                  gprofiler = "gprofiler",
                  david = "david",
-                 biomart = "biomart",
+                # biomart = "biomart",
                  phenotype = "phenotype",
                  ucsc = "ucsc",
                  SOIs = "SOIs",
@@ -783,40 +783,40 @@ We used Biomart for to generate ENSEMBL gene IDS format (required for gene funct
 #attributes = listAttributes(ensembl) # I will use ensembl_gene_id.
 
 
-mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
-refseq <- unique(tag.snps.vs.ld.haploreg$RefSeq_id)
-refseq.id <- getBM(
-                    filters="refseq_mrna",
-                    attributes=c("hgnc_symbol","ensembl_gene_id","chromosome_name", "band", "refseq_mrna", "entrezgene", "go_id", "interpro_description"),
-                    values=refseq,
-                    mart=mart)
-
-## Export the full result table
-biomart.data <- "gene.vs.biomart.tsv"
-biomart.path <- file.path(dir.path["biomart"], biomart.data)
-write.table(x = refseq.id,
-            file = paste(dir,"biomart", biomart.data, sep = "/"), 
-            quote = FALSE, sep = "\t",
-            row.names = FALSE, col.names = FALSE)
-
-
-kable(head(refseq.id))
+# mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
+# refseq <- unique(tag.snps.vs.ld.haploreg$RefSeq_id)
+# refseq.id <- getBM(
+#                     filters="refseq_mrna",
+#                     attributes=c("hgnc_symbol","ensembl_gene_id","chromosome_name", "band", "refseq_mrna", "entrezgene", "go_id", "interpro_description"),
+#                     values=refseq,
+#                     mart=mart)
+# 
+# ## Export the full result table
+# biomart.data <- "gene.vs.biomart.tsv"
+# biomart.path <- file.path(dir.path["biomart"], biomart.data)
+# write.table(x = refseq.id,
+#             file = paste(dir,"biomart", biomart.data, sep = "/"), 
+#             quote = FALSE, sep = "\t",
+#             row.names = FALSE, col.names = FALSE)
+# 
+# 
+# kable(head(refseq.id))
 ```
 
 
 ## Functional annotation using DAVID
 
 ```{r david}
-## Selection of Ensemble gene ids from to biomart
-ensembl_gene_id <- unique(refseq.id$ensembl_gene_id)
-
-## Export the full result table
-david.data <- "esembl_gene_ids_from_biomart.txt"
-david.path <- file.path(dir.path["david"], david.data)
-write.table(x = ensembl_gene_id,
-            file = paste(dir,"david", david.data, sep = "/"), 
-            quote = FALSE, sep = "\t",
-            row.names = FALSE, col.names = FALSE)
+# ## Selection of Ensemble gene ids from to biomart
+# ensembl_gene_id <- unique(refseq.id$ensembl_gene_id)
+# 
+# ## Export the full result table
+# david.data <- "esembl_gene_ids_from_biomart.txt"
+# david.path <- file.path(dir.path["david"], david.data)
+# write.table(x = ensembl_gene_id,
+#             file = paste(dir,"david", david.data, sep = "/"), 
+#             quote = FALSE, sep = "\t",
+#             row.names = FALSE, col.names = FALSE)
 
 ## Run david functional annotation
 
@@ -842,37 +842,37 @@ The g:Profiler is an tool for finding enrichments in gene lists.
 
 #gene.ids <- as.list(unique(tag.snps.vs.ld.haploreg$GENCODE_name))
 
-gene.vs.gprofiler <- gprofiler(ensembl_gene_id, 
-                               organism = "hsapiens", 
-                               sort_by_structure = T,
-                               ordered_query = T, 
-                               significant = T, 
-                               exclude_iea = F, 
-                               underrep = F,
-                               evcodes = F, 
-                               region_query = F, 
-                               max_p_value = 1, 
-                               min_set_size = 0,
-                               max_set_size = 0, 
-                               min_isect_size = 0, 
-                               correction_method = "analytical",
-                               hier_filtering = "none", 
-                               domain_size = "annotated", 
-                               custom_bg = "",
-                               numeric_ns = "", 
-                               png_fn = NULL, 
-                               include_graph = F, 
-                               src_filter = NULL)
-
-## Export the full result table
-gprofiler.data <- "gene.vs.gprofiler.tsv"
-gprofiler.path <- file.path(dir.path["gprofiler"], gprofiler.data)
-write.table(x = gene.vs.gprofiler,
-            file = paste(dir,"gprofiler", gprofiler.data, sep = "/"), 
-            quote = FALSE, sep = "\t",
-            row.names = FALSE, col.names = FALSE)
-
-kable(head(gene.vs.gprofiler))
+# gene.vs.gprofiler <- gprofiler(ensembl_gene_id, 
+#                                organism = "hsapiens", 
+#                                sort_by_structure = T,
+#                                ordered_query = T, 
+#                                significant = T, 
+#                                exclude_iea = F, 
+#                                underrep = F,
+#                                evcodes = F, 
+#                                region_query = F, 
+#                                max_p_value = 1, 
+#                                min_set_size = 0,
+#                                max_set_size = 0, 
+#                                min_isect_size = 0, 
+#                                correction_method = "analytical",
+#                                hier_filtering = "none", 
+#                                domain_size = "annotated", 
+#                                custom_bg = "",
+#                                numeric_ns = "", 
+#                                png_fn = NULL, 
+#                                include_graph = F, 
+#                                src_filter = NULL)
+# 
+# ## Export the full result table
+# gprofiler.data <- "gene.vs.gprofiler.tsv"
+# gprofiler.path <- file.path(dir.path["gprofiler"], gprofiler.data)
+# write.table(x = gene.vs.gprofiler,
+#             file = paste(dir,"gprofiler", gprofiler.data, sep = "/"), 
+#             quote = FALSE, sep = "\t",
+#             row.names = FALSE, col.names = FALSE)
+# 
+# kable(head(gene.vs.gprofiler))
 
 ```
 
