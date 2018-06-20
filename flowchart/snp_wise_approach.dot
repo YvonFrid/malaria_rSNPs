@@ -7,16 +7,20 @@ digraph {
 
 	subgraph cluster_0 {
 		color="#0066BB";
-		bgcolor="#EEEEEE";
+		bgcolor="#C0C0C0";
 		label = "Candidate SNPs";
 		style="rounded";
 
 	## Rechearch of candidate SNPs
 	disgenet [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{DisGeNet}", URL="http://www.disgenet.org/web/DisGeNET/menu/browser/tab22?3&pview=default&pf=http://www.disgenet.org/web/DisGeNET%3Fdata/diseases::C0024530::de&pf=/data/sources::ALL::de", fontcolor="#0D73A7"];
-	tag_snps  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease associated SNPs|Tag SNPs}"];
+	gwas2014 [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{GWAS 2014}", URL="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4617542/", fontcolor="#0D73A7"];
+	gwas2018 [shape="record", style="rounded,filled", fillcolor="#D6EEFA", label="{GWAS 2018}", URL="http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1007172", fontcolor="#0D73A7"];
+	tag_snps  [shape="record", style="filled", fillcolor="#E9967A", label="{Tag SNPs|txt}"];
 	}
 
 	disgenet -> tag_snps
+	gwas2014 -> tag_snps
+	gwas2018 -> tag_snps
 
 	subgraph cluster_1 {
 		color="#0066BB";
