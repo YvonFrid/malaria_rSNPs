@@ -7,11 +7,6 @@ author:
 #date: 'Last update: `r Sys.Date()`'
 date: Last update:`r format(Sys.time())`
 output:
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -21,37 +16,55 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   word_document: default
 editor_options: 
   chunk_output_type: console
 ---
 
 
-```{r knitr setup, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
+```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
 ## Global configuration to generate the documents from this Rmd file
-library(knitr)
-library(RCurl)
-library(ggplot2) 
-library(gridExtra)
-library(cowplot)
-library(dplyr) 
-library(tidyr)
-library(VennDiagram)
-library(writexl)
-library(stringr)
-library(gdata)
-library(PythonInR)
-library(reticulate)
-library(haploR)
-library(RMySQL)
-library(GEOquery)
-library(gProfileR)
-library(lattice)
-library(qqman)
-library(readr)
-library(httr)
-library(jsonlite)
-library(xml2)
+libraries.to.install <- c(
+  "knitr", 
+  "RCurl", 
+  "ggplot2",
+  "gridExtra", 
+  "cowplot", 
+  "dplyr",
+  "tidyr", 
+  "VennDiagram", 
+  "writexl", 
+  "stringr", 
+  "gdata", 
+  "PythonInR", 
+  "reticulate", 
+  "haploR", 
+  "RMySQL", 
+  "GEOquery", 
+  "gProfileR", 
+  "lattice", 
+  "qqman", 
+  "readr", 
+  "httr", 
+  "jsonlite", 
+	"xml2")
+
+message("Loading libraries")
+for (lib in libraries.to.install) {
+	if (require(lib, character.only = TRUE, quietly = TRUE)) {
+	  message("\tLoaded library\t", lib)
+	} else {
+	  message("Installing library\t", lib)
+		install.packages(lib, dependencies = TRUE)
+	}
+}
+
+
 ```
 
 
@@ -75,6 +88,24 @@ parameters <- list(
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "png" # Format for insertion in the report
 )
+
+
+## IDs of the diseases of interesd
+diseaseIDs <- c("Malaria" = "C0024530", 
+                "Malaria susceptibility" = "C1970028",
+                "Antepartum malaria" = "C0747820",
+                "Mild malaria susceptibility" = "C1836721",
+                "Cerebral malaria" = "C0024534",
+                "Cerebral malaria susceptibility" = "C1855457",
+                "Cerebral malaria resistance" = "C1969379")
+
+## Summarize the genes per disease from disgenet
+gene.summary <- data.frame(
+  row.names = diseaseIDs,
+  ID = diseaseIDs,
+  name = names(diseaseIDs))
+
+
 ```
 
 
@@ -84,9 +115,8 @@ parameters <- list(
 dir.main <- '~/Google\ Drive/These_Yvon_2018/malaria_rSNPs'
 
 # Result directory (export result tables)
-dir.results <- "results"
-dir <- file.path(dir.main, dir.results)
-dir.path <- list(disgenet = "disgenet",
+dir.results <- file.path(dir.main, "results")
+result.folders <- list(disgenet = "disgenet",
                  gwas.2014 = "gwas.2014",
                  gwas.2018 = "gwas.2018",
                  remap ="remap",
@@ -102,8 +132,10 @@ dir.path <- list(disgenet = "disgenet",
                  SOIs = "SOIs",
                  SOI_motifs = "SOI_motifs")
 
-for (name in dir.path) {
-  dir.create(file.path(dir,name), showWarnings = FALSE, recursive = TRUE)
+dir.path <- c()
+for (folder in result.folders) {
+  dir.path[folder] <- file.path(dir.results, folder)
+  dir.create(dir.path[folder], showWarnings = FALSE, recursive = TRUE)
 }
 
 message("Working directory: ", getwd())
@@ -111,7 +143,7 @@ message("Working directory: ", getwd())
 #setwd(dir.main)
 ```
 
-# Goal:
+# Goal
 
 1) Identify the variants potentially associated with malaria.
 
@@ -130,10 +162,10 @@ message("Working directory: ", getwd())
     - Severe anemia
 
 
-# GWAS rearch
+# GWAS search
 
 - There are annotations of some symptoms in the GWAS catalog.
-- To cross search data of genes / SNPs associated with malaria.
+- To cross-search data of genes / SNPs associated with malaria.
 
 
 # Search criteria for SNPs
@@ -147,13 +179,18 @@ message("Working directory: ", getwd())
 ```{r generate_flowcharts, eval=TRUE}
 
 message("Updating flowchart figures")
-for (flowchart in c("flowchart/gene_wise_approach", "flowchart/snp_wise_approach")) {
+for (flowchart in c(
+  "flowchart/gene_wise_approach",
+  "flowchart/snp_wise_approach")) {
+  
   for (format in parameters$flowchart.formats) {
+    outfile <- paste(sep="", flowchart, ".", format)
     cmd <- paste(sep="", "dot -T", format, 
                  " ",  flowchart,".dot",
-                 " -o ", flowchart, ".", format)
-    message("\t", format, "\t", cmd)
+                 " -o ", outfile)
+#    message("\t", format, "\t", cmd)
     system(cmd)  
+    message("\t", outfile)
   }
 }
 
@@ -181,12 +218,16 @@ knitr::include_graphics(paste(sep="", "flowchart/snp_wise_approach.", parameters
 
 
 ```{r downloading_GDAs}
-
+message("Downloading malaria-associated SNPs from disgenet")
 ## Download gene table from DisGeNet
 url <- "http://www.disgenet.org/oql"
 
-## Generate the SQL query for DisGeNet
-oql <- "DEFINE
+
+GetGenesForDisease <- function (diseaseID) {
+  message("\tGetGenesForDisease\t", diseaseID)
+  
+  ## Generate the SQL query for DisGeNet
+  oql <- paste(sep="", "DEFINE
 	c0='/data/gene_disease',
 	c1='/data/genes',
 	c2='/data/diseases',
@@ -205,46 +246,87 @@ FROM
 	c0
 WHERE
 	(
-		c2 = 'C0024530'
+		c2 = '", diseaseID, "'
 	AND
 		c5 = 'ALL'
 	)
 ORDER BY
-	c3.score DESC" 
-
-
-dataTsv <- rawToChar(
-  charToRaw( 
+	c3.score DESC" )
+  
+  
+  ## Open a connection to disgenet and get the full table of disease-associated SNPs
+  dataTsv <- rawToChar(
+    charToRaw( 
     getURLContent(url, 
                   readfunction = charToRaw(oql), 
                   upload = TRUE, 
                   customrequest = "POST")))
+  gene.data <- read.csv(textConnection(dataTsv), header = TRUE, sep="\t")
+  # dim(gene.data)
+  #View(gene.data)
+  message("\t", nrow(gene.data), "\tgenes associated to disease ", diseaseID)
 
-gene.data <- read.csv(textConnection(dataTsv), header = TRUE, sep="\t")
-
-## Export the full result table
-gene.data.file <- "malaria_associated_genes.tsv"
-gene.data.path <- file.path(dir.path["disgenet"], gene.data.file)
-write.table(x = gene.data,
-            file = paste(dir, "disgenet", gene.data.file, sep = "/"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+  return(gene.data)  
+}
 
 
-## Select a subset of fields for display in the report
-gene.fields <- c(
-  "Gene" = "c1.symbol",
-  "Association type" = "c0.associationType",
-  "Score" = "c3.score",
-  "Disease" = "c2.name",
-  PMID = "c0.pmid"
+geneTables <- list()
+d <- 2
+genes.per.disease <- list()
+for (d in 1:length(diseaseIDs)) {
+  diseaseID <- diseaseIDs[[d]]
+  diseaseName <- names(diseaseIDs)[[d]]
+  
+  geneTables[[diseaseID]] <- GetGenesForDisease(diseaseID)
+  gene.summary[diseaseID, "nb_genes"] <- nrow(geneTables[[diseaseID]])
+
+  gene.symbols <- as.vector(unlist(geneTables[[diseaseID]]$c1.symbol))
+  if (length(gene.symbols) > 0) {
+    genes.per.disease[[diseaseName]] <-gene.symbols
+  }
+    
+  
+  ## Export the full result table
+  gene.data.file <- paste(sep="", 
+                          diseaseID, "_", 
+                          gsub(pattern = " +", replacement = "_", x = diseaseName),
+                          ".tsv")
+  
+  
+  gene.data.path <- file.path(dir.path["disgenet"], gene.data.file)
+  message("\tgene table\t", gene.data.path)
+  write.table(x = gene.data,
+              file = gene.data.path, 
+              quote = FALSE, 
+              sep = "\t", 
+              row.names = FALSE, 
+              col.names = TRUE)
+
+  ## Select a subset of fields for display in the report
+  gene.fields <- c(
+    "Gene" = "c1.symbol",
+    "Association type" = "c0.associationType",
+    "Score" = "c3.score",
+    "Disease" = "c2.name",
+    PMID = "c0.pmid"
   ) 
+  
+  ## Display a small subset of the table
+  display.table <- head(gene.data[, gene.fields])
+  names(display.table) <- names(gene.fields)
+  
+  kable(display.table)
+}
 
-## Display a small subset of the table
-display.table <- head(gene.data[, gene.fields])
-names(display.table) <- names(gene.fields)
+venn.file <- file.path(dir.results, "genes_per_disease_Venn.pdf")
+venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
+venn.plot <- venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
 
-kable(display.table)
 
 ```
+
+
+
 
 **Gene-wise result table: [`r gene.data.file`](`r gene.data.path`)**
 
@@ -462,7 +544,7 @@ write.table(x = display.table,
 ```
 
 
-```{r venn_diagram_disgenet}
+```{r venn_diagram_disgenet, fig.width=7, fig.height=8, fig.cap="Vennn diagram of DisGenet malaria-associated SNPs. "}
 grid.newpage()
 draw.triple.venn(area1 = length(display.table1$rsID), 
                  area2 = length(display.table2$rsID),
@@ -471,8 +553,10 @@ draw.triple.venn(area1 = length(display.table1$rsID),
                  n23 = length(intersect(display.table2$rsID, display.table3$rsID)),
                  n13 = length(intersect(display.table1$rsID, display.table3$rsID)),
                  n123 = length(intersect(intersect(display.table1$rsID, display.table2$rsID), display.table3)),
-                 category = c("All phenotypes", 
-                              "Cerebral malaria", "Mild malaria"),    
+                 category = c(
+                   "All phenotypes", 
+                   "Cerebral malaria", 
+                   "Mild malaria"),    
                  fill = c("orange",  "green", "red"), 
                  lty = "blank",
                  cex = 1, 
