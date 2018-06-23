@@ -1,0 +1,2 @@
+c1.coord	c1.symbol	c1.geneId	c1.AF_1000G	c1.class	c1.snpId	c1.AF_EXAC	c1.most_severe_consequence	c2.hpoName	c2.diseaseId	c2.name	c2.STY	c2.MESH	c2.diseaseClassName	c2.doName	c2.type	c2.OMIM	c2.diseaseId.1	c2.name.1	c3.score	c0.originalSource	c0.sentence	c0.pmid	c4.year
+31593133	NCR3	259197	0.228235	snp	rs2736191	null	upstream gene variant	null	C1836721	MALARIA, MILD, SUSCEPTIBILITY TO	Finding	null	null	null	disease	609148	C1836721	MALARIA, MILD, SUSCEPTIBILITY TO	0.5	CLINVAR	Association analyses of NCR3 polymorphisms with P. falciparum mild malaria.	17208487	2006
