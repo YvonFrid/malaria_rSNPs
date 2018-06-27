@@ -1,0 +1,150 @@
+---
+title: "Linkage desequilibrium using 1000 Genomes"
+author: 
+  name: "Yvon Mbouamboua & Jacques van Helden"
+affiliation: "Theories and Approach Genomic Complexity (TAGC)"
+email: fridyvon@gmail.com
+#date: 'Last update: `r Sys.Date()`'
+date: Last update:`r format(Sys.time())`
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: zenburn
+    self_contained: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
+  word_document: default
+---
+
+
+```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
+## Global configuration to generate the documents from this Rmd file
+libraries.to.install <- c(
+  "knitr",
+  "readtext",
+  "RCurl", 
+  "ggplot2",
+  "gridExtra", 
+  "cowplot", 
+  "dplyr",
+  "tidyr", 
+  "VennDiagram", 
+  "writexl", 
+  "stringr")
+
+message("Loading libraries")
+for (lib in libraries.to.install) {
+  if (require(lib, character.only = TRUE, quietly = TRUE)) {
+    message("\tLoaded library\t", lib)
+  } else {
+    message("Installing library\t", lib)
+    install.packages(lib, dependencies = TRUE)
+  }
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo=FALSE, 
+  eval=TRUE, 
+  cache=TRUE, 
+  message=FALSE, 
+  warning=FALSE, 
+  comment = "",  
+  fig.align= "center",
+  fig.width = 7, 
+  fig.height = 5,
+  fig.path = "figures/")
+```
+
+
+
+```{r configuration}
+## Main directory
+dir.main <- '~/Google\ Drive/These_Yvon_2018/malaria_rSNPs'
+
+# Result directory (export result tables)
+dir.results <- file.path(dir.main, "results")
+result.folders <- list(LD = "LD",
+                       SOI_BED = "SOI_BED")
+
+message("Working directory: ", getwd())
+
+#setwd(dir.main)
+```
+
+## Tag SNPs
+```{r tag.snps}
+Tag_SNPs <- read.table('data/SOIs/snps_of_interest.txt')
+kable(head(Tag_SNPs))
+```
+
+##  Convert RSID list to bed file
+
+```{bash}
+cat ~/Dropbox/rSNPs/data/SOIs/snps_of_interest.txt |python -c "import sys;sys.stdout.write('select chrom,chromStart,chromEnd,name from snp150 where name in (\'');[sys.stdout.write('%s'%line.replace('\n', '\',\'')) for line in sys.stdin];sys.stdout.write('\')')" |mysql --user=genome --host=genome-mysql.cse.ucsc.edu -NA -D hg38 |sort -k1,1 -k2,2n > ~/Dropbox/rSNPs/results/SOIs.bed
+```
+
+
+## Calculate LD
+
+https://adairama.wordpress.com/2017/05/12/download-1000-genomes-phase3-and-calculate-allele-frequencies/
+
+```{bash downloading_1000genomes}
+## Downloding of 1000 genomes phase 3 data for AFR population
+export GENOME1K_DIR_URL=ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502
+export GENOME1K_PUBLIC_DIR=${HOME}/human_genome/${GENOME1K_DIR_URL}
+export GENOME1K_PROCESSED_DIR=${HOME}/human_genome/processed/${GENOME1K_DIR_URL}
+mkdir -p ${GENOME1K_PUBLIC_DIR}
+
+
+#wget -N http://${GENOME1K_DIR_URL}/integrated_call_male_samples_v3.20130502.ALL.panel -P ${GENOME1K_PUBLIC_DIR}
+#for CHR in `seq 1 22`; do 
+#wget -N ftp://${GENOME1K_DIR_URL}/ALL.chr$CHR.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz -P ${GENOME1K_PUBLIC_DIR}; 
+#wget -N ftp://${GENOME1K_DIR_URL}/ALL.chr$CHR.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz.tbi -P ${GENOME1K_PUBLIC_DIR}; 
+#sleep 1
+#done
+
+## Process for plink BED
+# Keep African (AFR) population.
+mkdir -p ${GENOME1K_PROCESSED_DIR}/AFR
+grep AFR ${GENOME1K_PUBLIC_DIR}/integrated_call_male_samples_v3.20130502.ALL.panel >$GENOME1K_PROCESSED_DIR/AFR/AFR.id
+
+## Convert to plink BED 
+mkdir -p $GENOME1K_PROCESSED_DIR/AFR/plink_bed
+for CHR in `seq 1 22`; do 
+plink --vcf ${GENOME1K_PUBLIC_DIR}/ALL.chr${CHR}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz --keep-fam $GENOME1K_PROCESSED_DIR/AFR/AFR.id --geno 0.05 --hwe 1e-6 --make-bed --out $GENOME1K_PROCESSED_DIR/AFR/plink_bed/chr${CHR}
+done
+
+## plink --show-tags: List variants correlated to file variants
+
+
+export PLINK_BED_DIR=${HOME}/${GENOME1K_PROCESSED_DIR}/AFR/plink_bed
+mkdir -p ${PLINK_BED_DIR}
+
+export WDIR=${HOME}/tmp/plink_show-tags
+mkdir -p ${WDIR}
+cd ${WDIR}
+touch ${WDIR}/input.rsid
+mkdir -p ${WDIR}/chrom
+
+plink --bfile ${PLINK_BED_DIR}/chr${CHR}.bed --show-tags input.rsid --r2 --out ${WDIR}/chrom/chr${CHR}.bed
+
+cat ${WDIR}/chrom/chr*.tags >${WDIR}/plink.tags
+
+
+plink --bfile ${PLINK_BED_DIR}/chr${CHR}.bed --ld-snp-list input.rsid --r2 --out ${WDIR}/chrom/chr${CHR}.bed
+cat ${WDIR}/chrom/chr*.ld >${WDIR}/plink.ld
+
+```
+
+
+
