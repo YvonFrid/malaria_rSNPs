@@ -203,13 +203,9 @@ knitr::include_graphics(paste(sep="", "flowchart/snp_wise_approach.", parameters
 ```
 
 
-# Tools of to collect gènes/SNPs cancidats selection
-
-1. DisGenet
-http://www.disgenet.org/web/DisGeNET/menu;jsessionid=1x6jf5ghyr1ga155fxkzfk2iji
 
 ## Gene associated with malaria from DisGeNet
-
+http://www.disgenet.org/web/DisGeNET/menu;jsessionid=1x6jf5ghyr1ga155fxkzfk2iji
 
 ```{r downloading_GDAs}
 
@@ -217,7 +213,7 @@ message("Downloading malaria-associated genes from disgenet")
 ## Download gene table from DisGeNet
 url <- "http://www.disgenet.org/oql"
 
-GetGenesForDisease <- function (diseaseID) {
+GetGenesForDisease <- function (diseaseID, diseaseName) {
   message("\tGetGenesForDisease\t", diseaseID)
   
   ## Generate the SQL query for DisGeNet
@@ -257,45 +253,14 @@ GetGenesForDisease <- function (diseaseID) {
                     customrequest = "POST")))
   gene.data <- read.csv(textConnection(dataTsv), header = TRUE, sep="\t")
   
-
-  # dim(gene.data)
-  #View(gene.data)
-  message("\t", nrow(gene.data), "\tgenes associated to disease ", diseaseID)
   
-  
-  
-   geneTables <- list()
-d <- 2
-genes.per.disease <- list()
-for (d in 1:length(diseaseIDs)) {
-  diseaseID <- diseaseIDs[[d]]
-  diseaseName <- names(diseaseIDs)[[d]]
-
-
-  geneTables[[diseaseID]] <- GetGenesForDisease(diseaseID)
-  gene.summary[diseaseID, "nb_genes"] <- nrow(geneTables[[diseaseID]])
-
-  gene.symbols <- as.vector(unlist(geneTables[[diseaseID]]$c1.symbol))
-
-  if (length(gene.symbols) > 0) {
-    genes.per.disease[[diseaseName]] <-gene.symbols
-  }
-
-}
-
-
-  return(gene.data)   
-
-
-}
-
-
 ## Export the full result table
-  gene.data.file <- paste(sep="", 
-                          diseaseID, "_", 
-                          gsub(pattern = " +", replacement = "_", x = diseaseName),
+  gene.data.file <- paste(sep="",
+                          diseaseID, "_",
+                          gsub(pattern = " +", replacement = "_", 
+                               x = diseaseName),
                           ".tsv")
-  
+
   gene.data.path <- file.path(dir.path["disgenet"], gene.data.file)
   message("\tgene table\t", gene.data.path)
   write.table(x = gene.data,
@@ -304,33 +269,312 @@ for (d in 1:length(diseaseIDs)) {
               sep = "\t",
               row.names = FALSE,
               col.names = TRUE)
-
-  ## Select a subset of fields for display in the report
-  gene.fields <- c(
-    "Gene" = "c1.symbol",
-    "Association type" = "c0.associationType",
-    "Score" = "c3.score",
-    "Disease" = "c2.name",
-    PMID = "c0.pmid"
-  ) 
-     
-  ## Display a small subset of the table
-  display.table <- head(gene.data[, gene.fields])
-  names(display.table) <- names(gene.fields)
-   kable(display.table)
-
- 
+  return(gene.data)
   
- 
-venn.file <- file.path(dir.results, "genes_per_disease_Venn.tiff")
-venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
-venn.plot <- venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
+}
+  geneTables <- list()
+genes.per.disease <- list()
+for (d in 1:length(diseaseIDs)) {
+  diseaseID <- diseaseIDs[[d]]
+  diseaseName <- names(diseaseIDs)[[d]]
+  
+GetGenesForDisease(diseaseID, diseaseName)
+}
 
 
+# venn.file <- file.path(dir.results, "genes_per_disease_Venn.tiff")
+# venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
+# venn.plot <- venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
 
 
 ```
 
+
+
+### Collect all genes associated with different diseases from to DisGeNet
+
+```{r downloading_GDAs}
+
+message("Downloading malaria-associated genes from disgenet")
+## Download gene table from DisGeNet
+
+url <- "http://www.disgenet.org/oql"
+
+## Generate the SQL query for DisGeNet
+oql <- "DEFINE
+	c0='/data/gene_disease_summary',
+	c1='/data/genes',
+	c2='/data/diseases',
+	c3='/data/sources'
+ON
+	'http://www.disgenet.org/web/DisGeNET'
+SELECT
+	c1 (pantherName, symbol, geneId, description, description, DPI, DSI),
+	c2 (hpoName, diseaseId, name, STY, MESH, diseaseClassName, doName, type, OMIM, type),
+	c0 (score, EI, source, diseaseId, geneId, Npmids, Nsnps, source, diseaseId, geneId)
+FROM
+	c0
+WHERE
+	c3 = 'ALL'
+ORDER BY
+	c0.score DESC" 
+
+
+## Open a connection to disgenet and get the full table of disease-associated SNPs
+  dataTsv <- rawToChar(
+    charToRaw( 
+      getURLContent(url, 
+                    readfunction = charToRaw(oql), 
+                    upload = TRUE, 
+                    customrequest = "POST")))
+  gene.data <- read.csv(textConnection(dataTsv), header = TRUE, sep="\t")
+  # dim(gene.data)
+  #View(gene.data)
+  #message("\t", nrow(gene.data), "\t Genes associated to disease ")
+  
+
+  ## Export the full result table
+gene.data.file <- "all_genes_disease_association.tsv"
+gene.data.path <- file.path(dir.path["disgenet"], gene.data.file)
+write.table(x = gene.data,
+            file = paste(dir, "disgenet", gene.data.file, sep = "/"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+
+
+```
+
+## Select all genes associated with malaria only
+
+```{r genes.vs.malaria}
+all_genes_malaria <-
+  gene.data %>% 
+  select(c1.symbol,
+         c2.name,
+         c0.score,
+         c1.description,
+         c1.pantherName,
+         c0.Nsnps,
+         c0.Npmids
+        ) %>% 
+  filter(c2.name %in% c("MALARIA, SUSCEPTIBILITY TO (finding)",
+                        "Malaria, Falciparum",
+                        "Malaria, Vivax",
+                        "Malaria, Cerebral",
+                        "Malaria", 
+                        "Acute malaria",
+                        "antepartum malaria",
+                        "Chronic malaria")) %>% 
+  rename(
+    "gene" = c1.symbol,
+    "description" = c1.description,
+    "function" = c1.pantherName,
+    "score" = c0.score,
+    "npmids" = c0.Npmids,
+    "nsnps" = c0.Nsnps,
+    "phenotype" = c2.name) 
+
+kable(head(all_genes_malaria))
+
+```
+
+
+
+
+```{r }
+### Malaria gene function from DisGenet 
+#print(ggplot(all_genes_malaria, aes(description)) + geom_bar() + coord_flip())
+```
+
+
+
+### Collect all SNPs associated with all diseases from to DisGeNet
+
+
+```{r download_VDAs}
+message("Downloading malaria-associated snps from disgenet")
+## Download snp table from DisGeNet
+
+url <- "http://www.disgenet.org/oql"
+
+## Generate the SQL query for DisGeNet
+
+oql <- "DEFINE
+	c0='/data/variant_disease_summary',
+	c1='/data/variants',
+	c2='/data/diseases',
+	c3='/data/sources'
+ON
+	'http://www.disgenet.org/web/DisGeNET'
+SELECT
+	c0 (snpId, score, EI, snpId, source, diseaseId, Npmids),
+	c1 (DSI, DPI, chromosome, coord, most_severe_consequence, REF_ALT, class, AF_EXAC, AF_1000G),
+	c2 (hpoName, diseaseId, name, STY, MESH, diseaseClassName, doName, type, OMIM)
+FROM
+	c0
+WHERE
+	c3 = 'ALL'
+ORDER BY
+	c0.score DESC" 
+
+## Open a connection to disgenet and get the full table of disease-associated SNPs
+  dataTsv <- rawToChar(
+    charToRaw( 
+      getURLContent(url, 
+                    readfunction = charToRaw(oql), 
+                    upload = TRUE, 
+                    customrequest = "POST")))
+  snp.data <- read.csv(textConnection(dataTsv), header = TRUE, sep="\t")
+  # dim(gene.data)
+  #View(snp.data)
+  #message("\t", nrow(snp.data), "\t SNPs associated to disease ")
+  
+  
+  ## Export the full result table
+   
+snp.data.file <- "all_snps_disease_association.tsv"
+snp.data.path <- file.path(dir.path["disgenet"], snp.data.file)
+write.table(x = snp.data,
+            file = paste(dir, "disgenet", snp.data.file, sep = "/"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+
+```
+
+
+
+
+## Select all SNPs associated with different malaria phenotypes from DisGeNet
+
+```{r snps_vs_phenotypes}
+message("Selection of the all SNPs associated with malaria phenotypes")
+all_snps_malaria <-
+  snp.data %>% 
+  select(c1.chromosome,
+         c0.snpId,
+         c1.REF_ALT,
+        c1.class,
+        c1.most_severe_consequence,
+         c0.score,
+         c0.Npmids,
+        c2.name) %>% 
+  filter(c2.name %in% c("Malaria, Cerebral",
+                        "Malaria", 
+                        "MALARIA, SEVERE, SUSCEPTIBILITY TO",
+                        "MALARIA, MILD, SUSCEPTIBILITY TO",
+                        "MALARIA, RESISTANCE TO",
+                        "MALARIA, SUSCEPTIBILITY TO (finding)",
+                        "MALARIA, CEREBRAL, SUSCEPTIBILITY TO (finding)",
+                        "MALARIA, CEREBRAL, RESISTANCE TO",
+                        "Malaria, Falciparum")) %>% 
+  rename(
+    "rsid" = c0.snpId,
+    "npmids" = c0.Npmids,
+    "chr" = c1.chromosome,
+    "consequence" = c1.most_severe_consequence,
+    "allele" = c1.REF_ALT,
+     "class" = c1.class,
+    "phenotype" = c2.name) 
+  
+#View(all_snps_malaria)
+#dim(all_snps_malaria)
+
+
+kable(head(all_snps_malaria))
+```
+
+### Malaria phenotype from DisGenet
+
+```{r phenotype_vs_snp_plot}
+print(ggplot(all_snps_malaria, aes(phenotype)) + geom_bar() + coord_flip())
+```
+
+
+
+## All Genes/SNPs malaria association from to GWAS catalog
+
+Download the file that contains all associations with added ontology
+either by clicking 
+[this link](http://www.ebi.ac.uk/gwas/api/search/downloads/alternative), 
+or with the wget command:
+   
+```{bash wget_data, eval=FALSE}
+echo downloding GWAS catalog
+wget http://www.ebi.ac.uk/gwas/api/search/downloads/alternative
+mv alternative gwas_catalog.tsv
+mv gwas_catalog.tsv ${HOME}/Dropbox/rSNPs/data
+```
+
+### Reading the GWAS catalog
+
+```{r read_data, warning=FALSE, eval=TRUE, comment=NA}
+message("Reading GWAS catalog in tsv format")
+gwas <- read_tsv("data/gwas_catalog.tsv",na = c("","NA","NR"))
+gwas <- as.data.frame(gwas,stringsAsFactors = FALSE)
+#print(colnames(gwas))
+#print(dim(gwas))
+
+## Select the Genes/SNPs associated with malaria
+
+malaria.gwas <-
+  gwas %>% 
+  rename("disease_trait" = "DISEASE/TRAIT",
+         "pvalue" = "P-VALUE") %>% 
+  filter(disease_trait %in% c("Malaria",
+                              "Severe malaria",
+                              "Severe malaria (adjusted for sickle cell variant rs334)"))
+
+cat("Number of table rows before filtering step:",nrow(malaria.gwas))
+
+#View(malaria.gwas)
+
+## Select a subset of fields for display in the report
+  snp.fields <- c(
+    "chr" = "CHR_ID",
+    "gene" = "MAPPED_GENE",
+    "snp" = "SNPS",
+    "locus" = "REGION",
+    "phenotype" = "disease_trait",
+    "pvalue" = "pvalue",
+    "PMID" = "PUBMEDID"
+  ) 
+     
+  ## Display a small subset of the table
+  gwas.table <- head(malaria.gwas[, snp.fields])
+  names(gwas.table) <- names(snp.fields)
+   kable(gwas.table)
+   
+```
+
+
+
+
+## Linkage desequilibrium
+
+```{r}
+#Loading the SNPs of interest file
+
+tag.snps <- read.table('data/SOIs/snps_of_interest.txt')
+snps <- unique(sort(as.vector(unlist(tag.snps))))
+snp <- snps[1]
+
+server <- "https://rest.ensembl.org/"
+#View(tag.snps)
+population <- "1000GENOMES:phase_3:YRI" ## A CHANGER
+
+for (snp in snps) {
+  #ext <- "/ld/human/rs1042779/1000GENOMES:phase_3:KHV?content-type=application/json"
+  ext <- paste(sep="", "/ld/human/", snp,"/", population, "?content-type=application/json")
+  #  ext <- "variation/human/", snp, "?phenotypes=1")
+  
+  endpoint <-  paste(server, ext, sep = "")
+  
+  r <- GET(endpoint, content_type("application/json"))
+  #r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+  stop_for_status(r)
+  
+  # use this if you get a simple nested list back, otherwise inspect its structure
+  # head(data.frame(t(sapply(content(r),c))))
+  ld.Result <- (fromJSON(toJSON(content(r))))
+  #View(ld.Result)
+}
+```
 
 
 
