@@ -10,3 +10,8 @@ malaria_rsnp.pdf
 .Rhistory
 .RData
 Icon
+*.docx
+*.html
+*.pdf
+malaria_rSNPs_cache
+.RData
