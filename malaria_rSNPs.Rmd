@@ -174,8 +174,8 @@ message("\tWorking directory: ", getwd())
 
 message("Updating flowchart figures")
 for (flowchart in c(
-  "flowchart/gene.wise.approach",
-  "flowchart/snp.wise.approach")) {
+  "flowchart/gene_wise_approach",
+  "flowchart/snp_wise_approach")) {
   
   for (format in parameters$flowchart.formats) {
     outfile <- paste(sep="", flowchart, ".", format)
@@ -193,13 +193,13 @@ for (flowchart in c(
 ## Gene-wise approach
 
 ```{r fig.cap="Flow chart of the gene-wise approach. "}
-knitr::include_graphics(paste(sep = "", "flowchart/gene.wise.approach.", parameters["flowchart.format"]))
+knitr::include_graphics(paste(sep = "", "flowchart/gene_wise_approach.", parameters["flowchart.format"]))
 ```
 
 ## SNP-wise approach
 
 ```{r fig.cap="Flow chart of the snp-wise approach. "}
-knitr::include_graphics(paste(sep = "", "flowchart/snp.wise.approach.", parameters["flowchart.format"]))
+knitr::include_graphics(paste(sep = "", "flowchart/snp_wise_approach.", parameters["flowchart.format"]))
 ```
 
 
@@ -216,11 +216,13 @@ url <- "http://www.disgenet.org/oql"
 
 geneTables <- list()
 genes.per.disease <- list()
+gene.data.all.diseases <- data.frame()
 for (d in 1:length(diseaseIDs)) {
   diseaseID <- diseaseIDs[[d]]
   diseaseName <- names(diseaseIDs)[[d]]
   
   gene.data <- GetGenesForDisease(diseaseID, diseaseName)
+  gene.data.all.diseases <- rbind(gene.data.all.diseases, gene.data)
   
   ## Export the full result table
   gene.data.file <- paste(sep = "",
@@ -228,17 +230,31 @@ for (d in 1:length(diseaseIDs)) {
                           gsub(pattern = " +", replacement = "_", 
                                x = diseaseName),
                           ".tsv")
-  
   gene.data.path <- file.path(dir.path["gene.disgenet"], gene.data.file)
-  message("\tgene table\t", gene.data.path)
-
+  message("\tExporting gene table\t", gene.data.path)
   write.table(x = gene.data,
-              file = gene.data.path,
-              quote = FALSE,
-              sep = "\t",
-              row.names = FALSE,
-              col.names = TRUE)
+            file = gene.data.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
 }
+
+# dim(gene.data.all.diseases)
+# table(gene.data.all.diseases$c2.diseaseId)
+
+
+## Export the full result table
+gene.data.path <- file.path(dir.path["gene.disgenet"], "all_diseases.tsv")
+message("\tExporting gene table\t", gene.data.path)
+write.table(x = gene.data,
+            file = gene.data.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
 
 # venn.file <- file.path(dir.results, "genes.per.disease.Venn.tiff")
 # venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
