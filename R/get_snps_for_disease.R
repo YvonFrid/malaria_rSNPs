@@ -1,5 +1,10 @@
+#' @title Get snps associated to a given disease ID
+#' @author Script from the Disgenet template, customised by Yvon Mbouamboua
+#' @param diseaseID disgenet ID of the disease of interest
+#' @param diseaseName disease name, as found in Disgenet
+#' @return a data frame with the information about each snp associated to the query disease
+#' 
 
-## SNPs
 
 GetSnpsForDisease <- function(diseaseID, diseaseName) {
   message("\tGetSnpsForDisease\t", diseaseID)

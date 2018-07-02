@@ -326,13 +326,13 @@ gwas2018.table <- head(gwas2018[, snp.gwas.fields])
 
    
 ## Combine datset from GWAS 2014 and 2018
-gwas.2014.vs.2018 <- rbind(gwas2014.table, gwas2018.table)
-View(gwas.2014.vs.2018)
-kable(gwas.2014.vs.2018)
+gwas_2014_vs_2018 <- rbind(gwas2014.table, gwas2018.table)
+#View(gwas_2014_vs_2018)
+kable(gwas_2014_vs_2018)
 
 ## Plot the interest genes
-print(ggplot(gwas.2014.vs.2018, aes(Phenotype)) + geom_bar() + coord_flip())
-print(ggplot(gwas.2014.vs.2018, aes(Gene)) + geom_bar() + coord_flip())
+print(ggplot(gwas_2014_vs_2018, aes(Phenotype)) + geom_bar() + coord_flip())
+print(ggplot(gwas_2014_vs_2018, aes(Gene)) + geom_bar() + coord_flip())
 ```
 
 
@@ -487,13 +487,14 @@ signif_malaria_gwas <- subset(malaria_gwas,
 ```{r genes_snps}
 ## Merging the genes/SNPs
 
-gene_snp_disease <- rbind(gwas.2014.vs.2018, signif_catalog_gwas)
+gene_snp_disease <- rbind(gwas_2014_vs_2018, signif_catalog_gwas)
 
 #View(gene_snp_disease)
 
 ## Select TagSnps
 TagSnps1 <- gene_snp_disease$rsID
 TagSnps <- unique(str_replace(TagSnps1, pattern = "rs11335470_", replacement = "rs11335470"))
+kable(head(TagSnps), caption = "Liste of TagSNPS")
 
 tagsnp.file <- "tagsnps.txt"
 tagsnp.path <- file.path(dir.path["tagsnps"], tagsnp.file)
@@ -507,7 +508,7 @@ write.table(x = TagSnps,
 #View(TagSnps)
 ```
 
-
+**Tag SNPs result file of  malaria: [`r tagsnp.file`](`r tagsnp.path`)**
 
 
 
@@ -539,10 +540,45 @@ kable(head(subsetLd))
 #View(tagSnpsLdHaploreg)
 ```
 
+
+
+## Linkage desequilibrium
+
+```{r}
+#Loading the SNPs of interest file
+
+snps <- unique(sort(as.vector(unlist(TagSnps))))
+snp <- snps[1]
+
+server <- "https://rest.ensembl.org/"
+#View(tag.snps)
+population <- "1000GENOMES:phase_3:YRI" 
+for (snp in snps) {
+  #ext <- "/ld/human/rs1042779/1000GENOMES:phase_3:KHV?content-type=application/json"
+  ext <- paste(sep="", "/ld/human/", snp,"/", population, "?content-type=application/json")
+  #  ext <- "variation/human/", snp, "?phenotypes=1")
+  
+  endpoint <-  paste(server, ext, sep = "")
+  
+  r <- GET(endpoint, content_type("application/json"))
+  #r <- GET(paste(server, ext, sep = ""), content_type("application/json"))
+  stop_for_status(r)
+  
+  # use this if you get a simple nested list back, otherwise inspect its structure
+  # head(data.frame(t(sapply(content(r),c))))
+  ldResult <- (fromJSON(toJSON(content(r))))
+  #View(head(ld.Result))
+ return(ldResult)
+}
+```
+
+
+
 ## Selection of SNPs Of Interest (SOIs)
 
 ```{r rsid_vs_ld_snps}
- LdTagsnps <- as.data.frame(unique(subsetLd$rsID, subsetLd$query_snp_rsid))
+ LdTagsnps <- unique(subsetLd$rsID, subsetLd$query_snp_rsid)
+kable(head(LdTagsnps), caption = "Liste of SNPs of interest (SOI)", col.names = "rsID")
 
 soi.file <- "snps_of_interest.txt"
 soi.path <- file.path(dir.path["sois"], soi.file)
@@ -556,5 +592,34 @@ write.table(x = LdTagsnps,
 ```
 
 
+## Analysis of SNPs of interest
+
+```{r}
+sois.gwava <- read.delim('data/gwava/sois_vs_gwava.tsv', header = TRUE, sep = "\t")
+
+
+## Select a subset of fields for display in the report
+  gwava.fields <- c(
+         "ID",
+         "Chromosome",
+         "H3K27me3",
+         "H3K79me2",
+         "H3K36me3",
+         "H3K9ac",
+         "H3K4me1",
+         "H3K9me1",
+         "H3K4me2",
+         "H3K9me3",
+         "H3K27ac",
+         "H3K4me3",
+         "H4K20me1"
+  ) 
+     
+  ## Display a small subset of the table
+  gwava_table <- sois.gwava[, gwava.fields]
+  
+   kable(gwava_table)
+
+```
 
 
