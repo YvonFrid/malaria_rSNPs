@@ -169,7 +169,7 @@ message("\tWorking directory: ", getwd())
 - Functional analyzes of the mutant.
 
 
-# Flow chart 
+## Flow chart 
 
 ```{r generate_flowcharts, eval=TRUE}
 
@@ -188,8 +188,8 @@ for (flowchart in c(
     message("\t", outfile)
   }
 }
-
 ```
+
 
 ## Gene-wise approach
 
