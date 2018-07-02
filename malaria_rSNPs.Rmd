@@ -102,6 +102,7 @@ gene.summary <- data.frame(
 
 ## Get source
 source("R/get_genes_for_disease.R")
+source("R/get_snps_for_disease.R")
 ```
 
 
@@ -120,7 +121,7 @@ result.folders <- list(gene.disgenet = "gene.disgenet",
                        gwas.2018 = "gwas.2018",
                        remap = "remap",
                        roken = "roken",
-                       tag.snps = "tag.snps",
+                       tagsnps = "tagsnps",
                        haploreg = "haploreg",
                        sois = "sois",
                        soi.motifs = "soi.motifs")
@@ -273,11 +274,13 @@ url <- "http://www.disgenet.org/oql"
 
 snpTables <- list()
 snp.per.disease <- list()
+snp.data.all.diseases <- data.frame()
 for (s in 1:length(diseaseIDs)) {
   diseaseID <- diseaseIDs[[s]]
   diseaseName <- names(diseaseIDs)[[s]]
   
   snp.data <- GetSnpsForDisease(diseaseID, diseaseName)
+  snp.data.all.diseases <- rbind(snp.data.all.diseases, snp.data)
   
   ## Export the full result table
   snp.data.file <- paste(sep = "",
@@ -305,11 +308,13 @@ print(ggplot(snp.data, aes(c2.most_severe_consequence	)) + geom_bar() + coord_fl
 ```
 
 
+
+
 ## Collecte the significant SNPs associated with malaria from to GWAS 2014 and 2018
 
 ```{r gwas_2014_2018}
-gwas2014 <- read_tsv("data/gwas/gwas2014.tsv")
-gwas2018 <- read_tsv("data/gwas/gwas2018.tsv")
+gwas2014 <- read_tsv("data/gwas/mgen_2014_signif_SNPs.tsv")
+gwas2018 <- read_tsv("data/gwas/ravhenall_2018_signif_SNPs.tsv")
 
 ## Select a subset of fields for display in the report
 snp.gwas.fields <- c("Gene", "rsID", "Phenotype") 
@@ -322,7 +327,7 @@ gwas2018.table <- head(gwas2018[, snp.gwas.fields])
    
 ## Combine datset from GWAS 2014 and 2018
 gwas.2014.vs.2018 <- rbind(gwas2014.table, gwas2018.table)
-
+View(gwas.2014.vs.2018)
 kable(gwas.2014.vs.2018)
 
 ## Plot the interest genes
@@ -338,34 +343,30 @@ either by clicking
 [this link](http://www.ebi.ac.uk/gwas/api/search/downloads/alternative), 
 or with the wget command:
    
-```{bash wget_data, eval=FALSE}
-echo downloding GWAS catalog
-wget http://www.ebi.ac.uk/gwas/api/search/downloads/alternative
-mv alternative gwas_catalog.tsv
-mv gwas_catalog.tsv ${HOME}/Google\ Drive/These_Yvon_2018/malaria_rSNPs/data/gwas.catalog
-```
-
 
 ### Reading the GWAS catalog
 
 ```{r read_data, warning=FALSE, eval=TRUE, comment=NA}
+message("Downloding GWAS catalog")
+download.file(url='http://www.ebi.ac.uk/gwas/api/search/downloads/alternative', destfile='data/gwas_catalog/gwas_catalog.tsv', method='auto')
+
 message("Reading GWAS catalog in tsv format")
-gwas <- read_tsv("data/gwas.catalog/gwas_catalog.tsv",na = c("","NA","NR"))
+gwas <- read_tsv("data/gwas_catalog/gwas_catalog.tsv",na = c("","NA","NR"))
 gwas <- as.data.frame(gwas,stringsAsFactors = FALSE)
 #print(colnames(gwas))
 #print(dim(gwas))
 
 ## Select the Genes/SNPs associated with malaria
 
-malaria.gwas <-
+malaria_gwas <-
   gwas %>% 
-  rename("disease_trait" = "DISEASE/TRAIT",
-         "pvalue" = "P-VALUE") %>% 
-  filter(disease_trait %in% c("Malaria",
+  rename("diseaseTrait" = "DISEASE/TRAIT",
+         "pValue" = "P-VALUE") %>% 
+  filter(diseaseTrait %in% c("Malaria",
                               "Severe malaria",
                               "Severe malaria (adjusted for sickle cell variant rs334)"))
 
-cat("Number of table rows before filtering step:",nrow(malaria.gwas))
+cat("Number of table rows before filtering step:",nrow(malaria_gwas))
 
 #View(malaria.gwas)
 
@@ -375,18 +376,18 @@ cat("Number of table rows before filtering step:",nrow(malaria.gwas))
     "gene" = "MAPPED_GENE",
     "snp" = "SNPS",
     "locus" = "REGION",
-    "phenotype" = "disease_trait",
-    "pvalue" = "pvalue",
+    "phenotype" = "diseaseTrait",
+    "pValue" = "pValue",
     "PMID" = "PUBMEDID"
   ) 
      
   ## Display a small subset of the table
-  gwas.table <- head(malaria.gwas[, snp.fields])
-  names(gwas.table) <- names(snp.fields)
-   kable(gwas.table)
+  gwas_table <- head(malaria_gwas[, snp.fields])
+  names(gwas_table) <- names(snp.fields)
+   kable(gwas_table)
    
 ## Print the gwas.data plot
-print(ggplot(gwas.table, aes(gene)) + geom_bar() + coord_flip())
+print(ggplot(gwas_table, aes(gene)) + geom_bar() + coord_flip())
    
 ```
 
@@ -395,7 +396,7 @@ print(ggplot(gwas.table, aes(gene)) + geom_bar() + coord_flip())
 
 ```{R trait_summary_plot, fig.height=7.5, fig.width=7.5, eval=TRUE}
 
-print(ggplot(malaria.gwas, aes(disease_trait)) +
+print(ggplot(malaria_gwas, aes(diseaseTrait)) +
         geom_bar() + 
         coord_flip() +
         theme_minimal() +
@@ -404,15 +405,156 @@ print(ggplot(malaria.gwas, aes(disease_trait)) +
 ```
 
 
-### Significant malaria association SNPs from to GWAS catalog
+
 
 ```{r}
-signif.snps.catalog.gwas <-
-malaria.gwas %>% 
-  filter( as.numeric(pvalue) <= 5e-08)
-#View(signif.snps)
+gwas_plot <- function (trait, max.pvalue) {
+  
+  # Colours and symbols I like using.
+  clrs   <- rep(c("darkorange","dodgerblue","forestgreen","red",
+                  "navyblue","gold","yellowgreen","darkviolet",
+                  "magenta","cyan"),times = 4)
+  shapes <- rep(c(20,1,2,4),each = 10)
 
-kable(signif.snps.catalog.gwas[, c("CHR_ID", "MAPPED_GENE", "REGION" ,"SNPS" , "disease_trait", "pvalue", "PUBMEDID" )])
+  
+   # Change the name of the "P-VALUE" column to "PVALUE".
+  i <- which(colnames(gwas) == "P-VALUE")
+  colnames(gwas)[i] <- "pValue"
+  
+
+  x <- subset(gwas,
+              MAPPED_TRAIT == trait &
+              as.numeric(pValue) < max.pvalue)
+  
+   x <- data.frame(
+         effect.size = x[["OR or BETA"]],
+         allele.freq = log10(as.numeric(x[["RISK ALLELE FREQUENCY"]])),
+         study       = factor(x[["STUDY ACCESSION"]]),
+         hla         = factor(grepl("HLA",x[["REPORTED GENE(S)"]]),
+                              levels = c(FALSE,TRUE),labels = c("","HLA")))
+  
+    # The function's return value is a ggplot object. 
+  return(ggplot(x,aes(x     = effect.size,
+                      y     = allele.freq,
+                      color = study,
+                      shape = study,
+                      label = hla)) +
+    geom_point(size = 2.5) + 
+    geom_text(size = 2.75,hjust = "left",vjust = "top",col = "black") + 
+    scale_color_manual(values = clrs) +
+    scale_shape_manual(values = shapes) +
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()) +
+    labs(title = paste("GWAS Catalog associations for",trait,
+                       "with p-value <",max.pvalue)))
+}
 ```
+
+
+```{R scatterplot_ms, warning=FALSE, eval=TRUE}
+print(gwas_plot(trait = "malaria",max.pvalue = 1e-8))
+```
+
+
+
+### Significant malaria association SNPs from to GWAS catalog
+
+```{r significant_snps_from_gwas_catalog}
+
+signif_malaria_gwas <- subset(malaria_gwas, 
+              as.numeric(pValue) <= 1e-8)
+  
+#View(signif_malaria_gwas)
+
+  ## Select a subset of fields for display in the report  
+  fields <- c(
+    "rsID" = "SNPS",
+    "Gene" = "MAPPED_GENE",
+    "Phenotype" = "diseaseTrait")
+
+    ## Display  the table
+  signif_catalog_gwas <- signif_malaria_gwas[ , fields ]
+  names(signif_catalog_gwas) <- names(fields)
+   kable(signif_catalog_gwas)
+   
+
+```
+
+
+## Data set of malaria genes and significant SNPs from to GWAS (catalog, 2014 and 2018)
+
+```{r genes_snps}
+## Merging the genes/SNPs
+
+gene_snp_disease <- rbind(gwas.2014.vs.2018, signif_catalog_gwas)
+
+#View(gene_snp_disease)
+
+## Select TagSnps
+TagSnps1 <- gene_snp_disease$rsID
+TagSnps <- unique(str_replace(TagSnps1, pattern = "rs11335470_", replacement = "rs11335470"))
+
+tagsnp.file <- "tagsnps.txt"
+tagsnp.path <- file.path(dir.path["tagsnps"], tagsnp.file)
+write.table(x = TagSnps,
+              file = tagsnp.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+
+#View(TagSnps)
+```
+
+
+
+
+
+# Linkage Desequilibrium (LD) using HaploReg
+
+```{r haplor}
+
+## Run HaploReg with the tag SNPs
+tagSnpsLdHaploreg <- queryHaploreg(query = TagSnps, ldThresh = 0.8, ldPop = "AFR", url = "http://archive.broadinstitute.org/mammals/haploreg/haploreg.php")
+
+## Display a subset table from to haploreg
+subsetLd <- tagSnpsLdHaploreg[c("GENCODE_name",  "chr", "pos_hg38", "rsID", "query_snp_rsid",  "ref", "alt", "r2", "Promoter_histone_marks", "Enhancer_histone_marks")]
+kable(head(subsetLd))
+
+## Export the full result table
+ 
+ ld_haplo_file <- "tag_snps_haplo_ld.tsv"
+ haplo_path <- file.path(dir.path["haploreg"], ld_haplo_file)
+  message("\tLD table\t", haplo_path)
+
+  write.table(x = tagSnpsLdHaploreg,
+              file = haplo_path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+  
+#kable(head(tagSnpsLdHaploreg))
+#View(tagSnpsLdHaploreg)
+```
+
+## Selection of SNPs Of Interest (SOIs)
+
+```{r rsid_vs_ld_snps}
+ LdTagsnps <- as.data.frame(unique(subsetLd$rsID, subsetLd$query_snp_rsid))
+
+soi.file <- "snps_of_interest.txt"
+soi.path <- file.path(dir.path["sois"], soi.file)
+write.table(x = LdTagsnps,
+              file = soi.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+
+```
+
+
 
 
