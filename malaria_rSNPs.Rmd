@@ -85,8 +85,10 @@ parameters <- list(
 )
 
 
-## IDs of the diseases of interesd
+## IDs of the diseases of interesd according to the genes
 diseaseIDs <- c("Malaria gene" = "C0024530", 
+                "P.falciparum Malaria gene" = "C0024535",
+                "P.vivax Malaria gene" = "C0024537",
                 "Malaria gene susceptibility" = "C1970028",
                 "Antepartum malaria gene" = "C0747820",
                 "Mild malaria gene susceptibility" = "C1836721",
@@ -99,10 +101,27 @@ gene.summary <- data.frame(
   row.names = diseaseIDs,
   ID = diseaseIDs,
   name = names(diseaseIDs))
+kable(gene.summary)
 
-## Get source
-source("R/get_genes_for_disease.R")
-source("R/get_snps_for_disease.R")
+
+## IDs of the diseases of interesd according to the SNPs
+diseaseSnpIDs <- c("Malaria snp" = "C0024530", 
+                "P.falciparum Malaria snp" = "C0024535",
+                "P.vivax Malaria snp" = "C0024537",
+                "Malaria snp susceptibility" = "C1970028",
+                "Antepartum malaria snp" = "C0747820",
+                "Mild malaria snp susceptibility" = "C1836721",
+                "Cerebral malaria snp" = "C0024534",
+                "Cerebral malaria snp susceptibility" = "C1855457",
+                "Cerebral malaria snp resistance" = "C1969379")
+
+## Summarize the genes per disease from disgenet
+snp.summary <- data.frame(
+  row.names = diseaseSnpIDs,
+  ID = diseaseSnpIDs,
+  name = names(diseaseSnpIDs))
+kable(snp.summary)
+
 ```
 
 
@@ -178,7 +197,7 @@ message("Updating flowchart figures")
 for (flowchart in c(
   "flowchart/gene_wise_approach",
   "flowchart/snp_wise_approach",
-  "flowchart/rsnp_pipline")) {
+  "flowchart/rsnp_pipeline")) {
   
   for (format in parameters$flowchart.formats) {
     outfile <- paste(sep="", flowchart, ".", format)
@@ -192,10 +211,10 @@ for (flowchart in c(
 }
 ```
 
-### Gene/SNP pipline
+### Gene/SNP pipeline
 
-```{r fig.cap="Flow chart of the gene/SNP pipline. "}
-knitr::include_graphics(paste(sep = "", "flowchart/rsnp_pipline.", parameters["flowchart.format"]))
+```{r fig.cap="Flow chart of the gene/SNP pipeline. "}
+knitr::include_graphics(paste(sep = "", "flowchart/rsnp_pipeline.", parameters["flowchart.format"]))
 ```
 
 ### Gene-wise approach
@@ -266,6 +285,9 @@ http://www.disgenet.org/web/DisGeNET/menu;jsessionid=1x6jf5ghyr1ga155fxkzfk2iji
 
 ```{r downloading_GDAs}
 
+## Get source
+source("R/get_genes_for_disease.R")
+
 message("Downloading malaria-associated genes from disgenet")
 ## Download gene table from DisGeNet
 url <- "http://www.disgenet.org/oql"
@@ -308,7 +330,7 @@ for (d in 1:length(diseaseIDs)) {
 
 }
 
-
+#View(gene.data.all.diseases)
 
 # venn.file <- file.path(dir.results, "genes.per.disease.Venn.tiff")
 # venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
@@ -319,41 +341,230 @@ for (d in 1:length(diseaseIDs)) {
 ## SNPs associated with malaria from DisGeNet
 
 
+```{r downloading VDAs}
+## Get source
+source("R/get_snps_for_disease.R")
+
+message("Downloading malaria-associated SNPs from disgenet")
+## Download SNP table from DisGeNet
+url <- "http://www.disgenet.org/oql"
+
+snpTables <- list()
+snp.per.disease <- list()
+snp.data.all.diseases <- data.frame()
+for (s in 1:length(diseaseSnpIDs)) {
+  diseaseSnpID <- diseaseSnpIDs[[s]]
+  diseaseName <- names(diseaseSnpIDs)[[s]]
+  
+  snp.data <- GetSnpsForDisease(diseaseSnpIDs, diseaseName)
+  snp.data.all.diseases <- rbind(snp.data.all.diseases, snp.data)
+  
+  ## Export the full result table
+  snp.data.file <- paste(sep = "",
+                          diseaseSnpID, "_",
+                          gsub(pattern = " +", replacement = "_", 
+                               x = diseaseName),
+                          ".tsv")
+  
+  snp.data.path <- file.path(dir.path["snp.disgenet"], snp.data.file)
+  message("\tgene table\t", snp.data.path)
+
+  write.table(x = snp.data,
+              file = snp.data.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+  
+    ## Export the full result combined tables
+  snp.data.file1 <- "all_snps_disease_association.tsv"
+  snp.data.path1 <- file.path(dir.path["snp.disgenet"], snp.data.file1)
+  message("\tExporting snp table\t", snp.data.path1)
+  write.table(x = snp.data.all.diseases,
+            file = snp.data.path1,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+  
+}
+
+#View(snp.data.all.diseases)
+
+```
 
 
 
 ```{r}
-#print(ggplot(snp.data, aes(c2.most_severe_consequence	)) + geom_bar() + coord_flip())
+print(ggplot(snp.data.all.diseases, aes(c2.most_severe_consequence	)) + geom_bar() + coord_flip())
+print(ggplot(snp.data.all.diseases, aes(c1.name)) + geom_bar() + coord_flip())
 ```
 
+
+### Select all SNPs associated with different malaria phenotypes from DisGeNet
+
+```{r snps_vs_phenotypes}
+snp.fields <- c(
+  "chr" = "c2.chromosome",
+  "rsid" = "c0.snpId",
+  "ref_alt" = "c2.REF_ALT",
+  "consequence" = "c2.most_severe_consequence",
+  "npmid" = "c0.Npmids",
+  "phenotype" = "c1.name"
+)
+
+## Display a small subset of the table
+  snp.table <- snp.data.all.diseases[, snp.fields]
+  names(snp.table) <- names(snp.fields)
+   kable(head(snp.table))
+
+```
+
+
+### Select all studied SNPs more than one population from DisGeNet
+
+```{r snps_vs_populations}
+all_snps_disgenet <- read_tsv('results/snp.disgenet/all_snps_disease_association.tsv')
+snp2populations <-
+  all_snps_disgenet %>%
+  filter(c0.Npmids > 1)
+View(snp2populations)
+```
 
 
 
 ## Collecte the significant SNPs associated with malaria from to GWAS 2014 and 2018
 
 ```{r gwas_2014_2018}
+## Importing data from GWAS 2014 and 2018
 gwas2014 <- read_tsv("data/gwas/mgen_2014_signif_SNPs.tsv")
 gwas2018 <- read_tsv("data/gwas/ravhenall_2018_signif_SNPs.tsv")
 
+## Tranformation the data in data.frame
+gwas2014 <- as.data.frame(gwas2014)
+gwas2018 <- as.data.frame(gwas2018)
+
 ## Select a subset of fields for display in the report
-snp.gwas.fields <- c("Gene", "rsID", "Phenotype") 
-  
-## Display a small subset of the table
-gwas2014.table <- head(gwas2014[, snp.gwas.fields])
+gwas_gene_snp2014 <-  gwas2014[, c("gene", "rsid", "phenotype")]
+gwas_gene_snp2018 <- gwas2018[, c("gene", "rsid", "phenotype")]
 
-gwas2018.table <- head(gwas2018[, snp.gwas.fields])
-
-   
 ## Combine datset from GWAS 2014 and 2018
-gwas_2014_vs_2018 <- rbind(gwas2014.table, gwas2018.table)
+gwas_2014_vs_2018 <- rbind(gwas_gene_snp2014, gwas_gene_snp2018)
 #View(gwas_2014_vs_2018)
-kable(gwas_2014_vs_2018)
+kable(head(gwas_2014_vs_2018))
 
 ## Plot the interest genes
-print(ggplot(gwas_2014_vs_2018, aes(Phenotype)) + geom_bar() + coord_flip())
-print(ggplot(gwas_2014_vs_2018, aes(Gene)) + geom_bar() + coord_flip())
+#print(ggplot(gwas_2014_vs_2018, aes(phenotype)) + geom_bar() + coord_flip())
+print(ggplot(gwas_2014_vs_2018, aes(gene)) + geom_bar() + coord_flip())
 ```
 
 
+### Tag SNPs
+
+Teh Tag SNPs are the result of the combinaison of the SNPs from DisGeNet and GWAS (2014, 2018)
+
+```{r disgenet_vs_gwas_2014_2018}
+## TagSNP-phenotype from to GWAS (2014 and 2018)
+GwasTagSnp <- gwas_2014_vs_2018[, c("rsid", "phenotype")]
+
+## TagSNP-phenotype from to disgenet
+DisgenetTagSnp <- as.data.frame(snp2populations[, c("c0.snpId", "c1.name")])
+
+## Rename the columns of DisgenetTagSnp variable
+names(DisgenetTagSnp) <- c("rsid", "phenotype")
+
+#View(DisgenetTagSnp)
+
+Disgenet_vs_gwas <- rbind(DisgenetTagSnp, GwasTagSnp)
+TagSnps <- unique(Disgenet_vs_gwas$rsid)
+
+tagsnps.file <- "tagsnps.txt"
+tagsnps.path <- file.path(dir.path["tagsnps"], tagsnps.file)
+write.table(x = TagSnps,
+              file = tagsnps.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+```
 
 
+**We collected a set of the `r length (TagSnps)` Tag SNPs associated with different malaria phenotypes: [`r tagsnps.file`](`r tagsnps.path`)**
+
+
+
+# Haplotype collection
+
+We used the R HalpoR package which allows to recover SNPs in linkage Desequilibrium (LD) using HaploReg by specifying the population. We specified the African population and submitted the SNPs of interest obtained by the 3 requests above (DisGenet
+GWAS malaria 2014 and GWAS malaria 2018).
+
+
+```{r haplor}
+
+## Run HaploReg with the tag SNPs
+tagSnpsLdHaploreg <- queryHaploreg(query = TagSnp, ldThresh = 0.8, ldPop = "AFR", url = "http://archive.broadinstitute.org/mammals/haploreg/haploreg.php")
+
+## Display a subset table from to haploreg
+subsetLd <- tagSnpsLdHaploreg[c("chr", 
+                                "GENCODE_name", 
+                                "rsID", 
+                                "ref", 
+                                "alt", 
+                                "query_snp_rsid", 
+                                "r2", 
+                                "AFR", 
+                                "DNAse", 
+                                "Motifs", 
+                                "eQTL", 
+                                "Promoter_histone_marks", 
+                                "Enhancer_histone_marks")]
+
+
+View(subsetLd)
+#kable(head(subsetLd))
+
+#View(subsetLd)
+## Export the full result table
+ 
+ ld_haplo_file <- "tag_snps_haplo_ld.tsv"
+ haplo_path <- file.path(dir.path["haploreg"], ld_haplo_file)
+  message("\tLD table\t", haplo_path)
+
+  write.table(x = tagSnpsLdHaploreg,
+              file = haplo_path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+  
+#kable(head(tagSnpsLdHaploreg))
+View(tagSnpsLdHaploreg)
+```
+
+
+## Selection of SNPs Of Interest (SOIs)
+
+```{r rsid_vs_ld_snps}
+ LdTagsnps <- unique(subsetLd$rsID, subsetLd$query_snp_rsid)
+#LdTagsnps <- as.character(LdTagsnps)
+LdTagsnps <- as.data.frame(LdTagsnps)
+#names(LdTagsnps) <- "rsid"
+LdTagsnps <- unique(LdTagsnps)
+
+#kable(head(LdTagsnps), caption = "Liste of SNPs of interest (SOI)", col.names = "rsID")
+
+
+soi.file <- "snps_of_interest.txt"
+soi.path <- file.path(dir.path["sois"], soi.file)
+write.table(x = LdTagsnps,
+              file = soi.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+
+
+```
+
+In our list of SOIs, these SNPs are merged in rs55868763 = rs1541254
+rs79775818 = rs1541253, rs112685218 = rs8176733
