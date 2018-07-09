@@ -97,30 +97,25 @@ diseaseIDs <- c("Malaria gene" = "C0024530",
                 "Cerebral malaria gene resistance" = "C1969379")
 
 ## Summarize the genes per disease from disgenet
-gene.summary <- data.frame(
+disease.summary <- data.frame(
   row.names = diseaseIDs,
   ID = diseaseIDs,
   name = names(diseaseIDs))
-kable(gene.summary)
+disease.summary <- rbind(disease.summary, 
+                         data.frame(
+                           row.names = "all",
+                           ID = "all", 
+                           name = "All selected diseases"))
+#kable(disease.summary, row.names = FALSE)
+                         
 
-
-## IDs of the diseases of interesd according to the SNPs
-diseaseSnpIDs <- c("Malaria snp" = "C0024530", 
-                "P.falciparum Malaria snp" = "C0024535",
-                "P.vivax Malaria snp" = "C0024537",
-                "Malaria snp susceptibility" = "C1970028",
-                "Antepartum malaria snp" = "C0747820",
-                "Mild malaria snp susceptibility" = "C1836721",
-                "Cerebral malaria snp" = "C0024534",
-                "Cerebral malaria snp susceptibility" = "C1855457",
-                "Cerebral malaria snp resistance" = "C1969379")
-
-## Summarize the genes per disease from disgenet
-snp.summary <- data.frame(
-  row.names = diseaseSnpIDs,
-  ID = diseaseSnpIDs,
-  name = names(diseaseSnpIDs))
-kable(snp.summary)
+# 
+# ## Summarize the genes per disease from disgenet
+# snp.summary <- data.frame(
+#   row.names = diseaseIDs,
+#   ID = diseaseIDs,
+#   name = names(diseaseIDs))
+# #kable(snp.summary, row.names = FALSE)
 
 ```
 
@@ -134,10 +129,10 @@ dir.main <- '~/Google\ Drive/These_Yvon_2018/malaria_rSNPs'
 
 # Result directory (export result tables)
 dir.results <- file.path(dir.main, "results")
-result.folders <- list(gene.disgenet = "gene.disgenet",
-                       snp.disgenet = "snp.disgenet", 
-                       gwas.2014 = "gwas.2014",
-                       gwas.2018 = "gwas.2018",
+result.folders <- list(gene_disgenet = "disgenet_genes",
+                       snp_disgenet = "disgenet_snps", 
+                       gwas_2014 = "gwas_2014",
+                       gwas_2018 = "gwas_2018",
                        remap = "remap",
                        roken = "roken",
                        tagsnps = "tagsnps",
@@ -306,13 +301,14 @@ for (d in 1:length(diseaseIDs)) {
   gene.data <- GetGenesForDisease(diseaseID, diseaseName)
   gene.data.all.diseases <- rbind(gene.data.all.diseases, gene.data)
   
-  ## Export the full result table
+  ## Export the disease-specific result table
   gene.data.file <- paste(sep = "",
                           diseaseID, "_",
                           gsub(pattern = " +", replacement = "_", 
                                x = diseaseName),
                           ".tsv")
-  gene.data.path <- file.path(dir.path["gene.disgenet"], gene.data.file)
+  gene.data.path <- file.path(dir.path["disgenet_genes"], gene.data.file)
+  
   message("\tExporting gene table\t", gene.data.path)
   write.table(x = gene.data,
             file = gene.data.path,
@@ -321,25 +317,37 @@ for (d in 1:length(diseaseIDs)) {
             row.names = FALSE,
             col.names = TRUE)
   
-   ## Export the full result combined tables
-  gene.data.file1 <- "all_genes_disease_association.tsv"
-  gene.data.path1 <- file.path(dir.path["gene.disgenet"], gene.data.file1)
-  message("\tExporting gene table\t", gene.data.path1)
-  write.table(x = gene.data.all.diseases,
-            file = gene.data.path1,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
+  ## Add information to the gene summary table
+  disease.summary[diseaseID, "disgenet_genes"] <- nrow(gene.data)
+  disease.summary[diseaseID, "disgenet_gene_table"] <- gene.data.path
+  
 
 #   venn.file <- file.path(dir.results, "genes.per.disease.Venn.tiff")
 # venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
 # venn.plot <- venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
 # print(venn.plot)
 }
+
+## Export the full result combined tables
+gene.data.file <- "all_genes_disease_association.tsv"
+gene.data.path <- file.path(dir.path["disgenet_genest"], gene.data.file)
+message("\tExporting gene table\t", gene.data.path)
+write.table(x = gene.data.all.diseases,
+            file = gene.data.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
+## Add information to the gene summary table
+disease.summary["all", "disgenet_genes"] <- nrow(gene.data.all.diseases)
+disease.summary["all", "disgenet_gene_table"] <- gene.data.path
+
+# View(disease.summary)
+
 ```
 
-**DisGeNet provide `r nrow(gene.data.all.diseases)` genes associated with different malaria phenotypes: [`r gene.data.file1`](`r gene.data.path1`)**
+**DisGeNet provides `r nrow(gene.data.all.diseases)` genes associated with different malaria phenotypes: [`r gene.data.file`](`r gene.data.path`)**
 
 
 ## SNPs associated with malaria from DisGeNet
@@ -369,7 +377,7 @@ for (s in 1:length(diseaseSnpIDs)) {
                                x = diseaseName),
                           ".tsv")
   
-  snp.data.path <- file.path(dir.path["snp.disgenet"], snp.data.file)
+  snp.data.path <- file.path(dir.path["disgenet_snpst"], snp.data.file)
   message("\tgene table\t", snp.data.path)
 
   write.table(x = snp.data,
@@ -381,7 +389,7 @@ for (s in 1:length(diseaseSnpIDs)) {
   
     ## Export the full result combined tables
   snp.data.file1 <- "all_snps_disease_association.tsv"
-  snp.data.path1 <- file.path(dir.path["snp.disgenet"], snp.data.file1)
+  snp.data.path1 <- file.path(dir.path["disgenet_snpst"], snp.data.file1)
   message("\tExporting snp table\t", snp.data.path1)
   write.table(x = snp.data.all.diseases,
             file = snp.data.path1,
@@ -440,7 +448,7 @@ snp.fields <- c(
 Only SNPs that had a dbSNP identifier and whose trait association was replicated in at least two studies were considered in this analyse. 
 
 ```{r snps_vs_populations}
-all_snps_disgenet <- read_tsv('results/snp.disgenet/all_snps_disease_association.tsv')
+all_snps_disgenet <- read_tsv(snp.data.path1)
 snp2populations <-
   all_snps_disgenet %>%
   filter(c0.Npmids > 1)
