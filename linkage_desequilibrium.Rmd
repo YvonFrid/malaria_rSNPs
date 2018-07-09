@@ -35,11 +35,23 @@ libraries.to.install <- c(
   "gridExtra", 
   "cowplot", 
   "dplyr",
-  "tidyr", 
+  "tidyr",
   "VennDiagram", 
   "writexl", 
-  "stringr")
-
+  "stringr", 
+  "gdata", 
+  "PythonInR", 
+  "reticulate", 
+  "haploR", 
+  "RMySQL", 
+  "GEOquery", 
+  "gProfileR", 
+  "lattice", 
+  "qqman", 
+  "readr", 
+  "httr", 
+  "jsonlite", 
+  "xml2")
 message("Loading libraries")
 for (lib in libraries.to.install) {
   if (require(lib, character.only = TRUE, quietly = TRUE)) {
@@ -90,7 +102,7 @@ kable(head(Tag_SNPs))
 ##  Convert RSID list to bed file
 
 ```{bash}
-cat ~/Dropbox/rSNPs/data/SOIs/snps_of_interest.txt |python -c "import sys;sys.stdout.write('select chrom,chromStart,chromEnd,name from snp150 where name in (\'');[sys.stdout.write('%s'%line.replace('\n', '\',\'')) for line in sys.stdin];sys.stdout.write('\')')" |mysql --user=genome --host=genome-mysql.cse.ucsc.edu -NA -D hg38 |sort -k1,1 -k2,2n > ~/Dropbox/rSNPs/results/SOIs.bed
+cat ~/Google\ Drive/These_Yvon_2018/malaria_rSNPs/results/ldtagsnp/ldtagsnp.txt |python -c "import sys;sys.stdout.write('select chrom,chromStart,chromEnd,name from snp150 where name in (\'');[sys.stdout.write('%s'%line.replace('\n', '\',\'')) for line in sys.stdin];sys.stdout.write('\')')" |mysql --user=genome --host=genome-mysql.cse.ucsc.edu -NA -D hg38 |sort -k1,1 -k2,2n > ~/Google\ Drive/These_Yvon_2018/malaria_rSNPs/results/ldtagsnp/ldtagsnp.bed
 ```
 
 

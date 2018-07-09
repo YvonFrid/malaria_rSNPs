@@ -85,23 +85,43 @@ parameters <- list(
 )
 
 
-## IDs of the diseases of interesd
-diseaseIDs <- c("Malaria" = "C0024530", 
-                "Malaria susceptibility" = "C1970028",
-                "Antepartum malaria" = "C0747820",
-                "Mild malaria susceptibility" = "C1836721",
-                "Cerebral malaria" = "C0024534",
-                "Cerebral malaria susceptibility" = "C1855457",
-                "Cerebral malaria resistance" = "C1969379")
+## IDs of the diseases of interesd according to the genes
+diseaseIDs <- c("Malaria gene" = "C0024530", 
+                "P.falciparum Malaria gene" = "C0024535",
+                "P.vivax Malaria gene" = "C0024537",
+                "Malaria gene susceptibility" = "C1970028",
+                "Antepartum malaria gene" = "C0747820",
+                "Mild malaria gene susceptibility" = "C1836721",
+                "Cerebral malaria gene" = "C0024534",
+                "Cerebral malaria gene susceptibility" = "C1855457",
+                "Cerebral malaria gene resistance" = "C1969379")
 
 ## Summarize the genes per disease from disgenet
 gene.summary <- data.frame(
   row.names = diseaseIDs,
   ID = diseaseIDs,
   name = names(diseaseIDs))
+kable(gene.summary)
 
-## Get source
-source("R/get_genes_for_disease.R")
+
+## IDs of the diseases of interesd according to the SNPs
+diseaseSnpIDs <- c("Malaria snp" = "C0024530", 
+                "P.falciparum Malaria snp" = "C0024535",
+                "P.vivax Malaria snp" = "C0024537",
+                "Malaria snp susceptibility" = "C1970028",
+                "Antepartum malaria snp" = "C0747820",
+                "Mild malaria snp susceptibility" = "C1836721",
+                "Cerebral malaria snp" = "C0024534",
+                "Cerebral malaria snp susceptibility" = "C1855457",
+                "Cerebral malaria snp resistance" = "C1969379")
+
+## Summarize the genes per disease from disgenet
+snp.summary <- data.frame(
+  row.names = diseaseSnpIDs,
+  ID = diseaseSnpIDs,
+  name = names(diseaseSnpIDs))
+kable(snp.summary)
+
 ```
 
 
@@ -120,7 +140,8 @@ result.folders <- list(gene.disgenet = "gene.disgenet",
                        gwas.2018 = "gwas.2018",
                        remap = "remap",
                        roken = "roken",
-                       tag.snps = "tag.snps",
+                       tagsnps = "tagsnps",
+                       ldtagsnp = "ldtagsnp",
                        haploreg = "haploreg",
                        sois = "sois",
                        soi.motifs = "soi.motifs")
@@ -151,9 +172,10 @@ message("\tWorking directory: ", getwd())
 - Phenotypes studied:
   
   - Parasitemia
-- Cerebral malaria
-- Respiratory distress
-- Severe anemia
+  - Cerebral malaria
+  - Respiratory distress
+  - Severe malaria
+  - Severe malaria anemia
 
 
 # GWAS search
@@ -165,7 +187,7 @@ message("\tWorking directory: ", getwd())
 # Search criteria for SNPs
 
 - Number of studies / number of different populations where this variant was detected.
-- Functional analyzes of the mutant.
+- Functional analyzes of the SNP.
 
 
 # Flow chart 
@@ -175,7 +197,8 @@ message("\tWorking directory: ", getwd())
 message("Updating flowchart figures")
 for (flowchart in c(
   "flowchart/gene_wise_approach",
-  "flowchart/snp_wise_approach")) {
+  "flowchart/snp_wise_approach",
+  "flowchart/rsnp_pipeline")) {
   
   for (format in parameters$flowchart.formats) {
     outfile <- paste(sep="", flowchart, ".", format)
@@ -187,16 +210,21 @@ for (flowchart in c(
     message("\t", outfile)
   }
 }
-
 ```
 
-## Gene-wise approach
+### Gene/SNP pipeline
+
+```{r fig.cap="Flow chart of the gene/SNP pipeline. "}
+knitr::include_graphics(paste(sep = "", "flowchart/rsnp_pipeline.", parameters["flowchart.format"]))
+```
+
+### Gene-wise approach
 
 ```{r fig.cap="Flow chart of the gene-wise approach. "}
 knitr::include_graphics(paste(sep = "", "flowchart/gene_wise_approach.", parameters["flowchart.format"]))
 ```
 
-## SNP-wise approach
+### SNP-wise approach
 
 ```{r fig.cap="Flow chart of the snp-wise approach. "}
 knitr::include_graphics(paste(sep = "", "flowchart/snp_wise_approach.", parameters["flowchart.format"]))
@@ -204,11 +232,65 @@ knitr::include_graphics(paste(sep = "", "flowchart/snp_wise_approach.", paramete
 
 
 
+
+# Collect the malaria candidate genes
+
+## Data set of genes from to Huge Navigator 
+
+Web server of Huge Navigator:https://phgkb.cdc.gov/PHGKB/hNHome.action.
+In particular, we use Phenotype (https://phgkb.cdc.gov/PHGKB/startPagePhenoPedia.action), subset of Huge Navigator, for to collect the genes associated with different malaria phenotypes.
+
+```{r malaria_genes_phenopedia}
+## Importing data from phenopedia web server
+## We have collected the genes from to cerebral malaria, malaria P.falciparum, malaria P.vivax and malaria (phenotype non identified).
+cerebral_malaria.pheno1 <- read_tsv('data/phenopedia/phenopedia_cerebral_malaria_genes.tsv')
+malaria.pheno1 <- read_tsv('data/phenopedia/phenopedia_malaria_genes.tsv')
+pf.pheno1 <- read_tsv('data/phenopedia/phenopedia_plasmodium_falciparum_genes.tsv')
+pv.pheno1 <- read_tsv('data/phenopedia/phenopedia_plasmodium_vivax.tsv')
+
+## Create new column for Disease
+cerebral_malaria.pheno1 <- as.data.frame(cerebral_malaria.pheno1)
+cerebral_malaria.pheno <-
+  cerebral_malaria.pheno1 %>% 
+  mutate(Disease = "Cerebral malaria")
+
+malaria.pheno1 <- as.data.frame(malaria.pheno1)
+malaria.pheno <-
+  malaria.pheno1 %>% 
+  mutate(Disease = "Malaria")
+
+pf.pheno1 <- as.data.frame(pf.pheno1)
+pf.pheno <-
+  pf.pheno1 %>% 
+  mutate(Disease = "Malaria P.falciparum")
+
+pv.pheno1 <- as.data.frame(pv.pheno1)
+pv.pheno <-
+  pv.pheno1 %>% 
+  mutate(Disease = "Malaria P.vivax")
+
+## Combine all data
+pheno.data <- rbind.data.frame(
+  cerebral_malaria.pheno,
+  malaria.pheno,
+  pf.pheno, 
+  pv.pheno)
+
+kable(head(pheno.data), caption = "Genes associated malaria from to Phenopedia.")
+#print(ggplot(pheno.data, aes(AssociatedGene, fill = Disease)) + geom_bar() + coord_flip())
+```
+
+**We find `r nrow(pheno.data)` genes associated with malaria from to Phenopedia.**
+
+
 ## Gene associated with malaria from DisGeNet
 
 http://www.disgenet.org/web/DisGeNET/menu;jsessionid=1x6jf5ghyr1ga155fxkzfk2iji
 
 ```{r downloading_GDAs}
+
+## Get source
+source("R/get_genes_for_disease.R")
 
 message("Downloading malaria-associated genes from disgenet")
 ## Download gene table from DisGeNet
@@ -238,50 +320,51 @@ for (d in 1:length(diseaseIDs)) {
             sep = "\t",
             row.names = FALSE,
             col.names = TRUE)
-
-}
-
-# dim(gene.data.all.diseases)
-# table(gene.data.all.diseases$c2.diseaseId)
-
-
-## Export the full result table
-gene.data.path <- file.path(dir.path["gene.disgenet"], "all_diseases.tsv")
-message("\tExporting gene table\t", gene.data.path)
-write.table(x = gene.data,
-            file = gene.data.path,
+  
+   ## Export the full result combined tables
+  gene.data.file1 <- "all_genes_disease_association.tsv"
+  gene.data.path1 <- file.path(dir.path["gene.disgenet"], gene.data.file1)
+  message("\tExporting gene table\t", gene.data.path1)
+  write.table(x = gene.data.all.diseases,
+            file = gene.data.path1,
             quote = FALSE,
             sep = "\t",
             row.names = FALSE,
             col.names = TRUE)
 
-
-# venn.file <- file.path(dir.results, "genes.per.disease.Venn.tiff")
+#   venn.file <- file.path(dir.results, "genes.per.disease.Venn.tiff")
 # venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
 # venn.plot <- venn.diagram(x = genes.per.disease, filename = venn.file) #, height = 7, width = 8, resolution = 72)
-
+# print(venn.plot)
+}
 ```
 
+**DisGeNet provide `r nrow(gene.data.all.diseases)` genes associated with different malaria phenotypes: [`r gene.data.file1`](`r gene.data.path1`)**
 
 
 ## SNPs associated with malaria from DisGeNet
 
 ```{r downloading VDAs}
+## Get source
+source("R/get_snps_for_disease.R")
+
 message("Downloading malaria-associated SNPs from disgenet")
 ## Download SNP table from DisGeNet
 url <- "http://www.disgenet.org/oql"
 
 snpTables <- list()
 snp.per.disease <- list()
-for (s in 1:length(diseaseIDs)) {
-  diseaseID <- diseaseIDs[[s]]
-  diseaseName <- names(diseaseIDs)[[s]]
+snp.data.all.diseases <- data.frame()
+for (s in 1:length(diseaseSnpIDs)) {
+  diseaseSnpID <- diseaseSnpIDs[[s]]
+  diseaseName <- names(diseaseSnpIDs)[[s]]
   
-  snp.data <- GetSnpsForDisease(diseaseID, diseaseName)
+  snp.data <- GetSnpsForDisease(diseaseSnpID, diseaseName)
+  snp.data.all.diseases <- rbind(snp.data.all.diseases, snp.data)
   
   ## Export the full result table
   snp.data.file <- paste(sep = "",
-                          diseaseID, "_",
+                          diseaseSnpID, "_",
                           gsub(pattern = " +", replacement = "_", 
                                x = diseaseName),
                           ".tsv")
@@ -296,123 +379,263 @@ for (s in 1:length(diseaseIDs)) {
               row.names = FALSE,
               col.names = TRUE)
   
+    ## Export the full result combined tables
+  snp.data.file1 <- "all_snps_disease_association.tsv"
+  snp.data.path1 <- file.path(dir.path["snp.disgenet"], snp.data.file1)
+  message("\tExporting snp table\t", snp.data.path1)
+  write.table(x = snp.data.all.diseases,
+            file = snp.data.path1,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+  
 }
 ```
 
 
-```{r}
-print(ggplot(snp.data, aes(c2.most_severe_consequence	)) + geom_bar() + coord_flip())
+
+```{r ggplot_functional_annotation_and_phenotypes}
+
+print(ggplot(snp.data.all.diseases, 
+             aes(c2.most_severe_consequence	)) + 
+             geom_bar() + 
+             coord_flip() +
+             ggtitle("Different malaria functional SNP annotations") +
+             xlab("Functional annotation") +
+             ylab("Number of SNPs"))
+
+
+print(ggplot(snp.data.all.diseases, 
+             aes(c1.name)) + 
+             geom_bar() + 
+             coord_flip() +
+             ggtitle("Different malaria phenotypes") +
+             xlab("Phenotypes") +
+             ylab("Number of SNPs"))
 ```
 
 
-## Collecte the significant SNPs associated with malaria from to GWAS 2014 and 2018
+```{r snps_vs_phenotypes}
+snp.fields <- c(
+  "chr" = "c2.chromosome",
+  "rsid" = "c0.snpId",
+  "ref_alt" = "c2.REF_ALT",
+  "consequence" = "c2.most_severe_consequence",
+  "npmid" = "c0.Npmids",
+  "phenotype" = "c1.name"
+)
+
+## Display a small subset of the table
+  snp.table <- snp.data.all.diseases[, snp.fields]
+  names(snp.table) <- names(snp.fields)
+   kable(head(snp.table), caption = "SNPs associated with different malaria phenotypes from DisGeNet.")
+```
+
+**We are collected `r nrow(snp.data.all.diseases)` SNPs associated with different malaria phenotypes from to DisGeNet: [`r snp.data.file1`](`r snp.data.path1`)**
+
+
+### Select all studied SNPs more than one population from DisGeNet
+
+Only SNPs that had a dbSNP identifier and whose trait association was replicated in at least two studies were considered in this analyse. 
+
+```{r snps_vs_populations}
+all_snps_disgenet <- read_tsv('results/snp.disgenet/all_snps_disease_association.tsv')
+snp2populations <-
+  all_snps_disgenet %>%
+  filter(c0.Npmids > 1)
+#View(snp2populations)
+```
+
+**We are a subset of `r nrow(snp2populations)` SNPs identified in more than one studies.**
+
+
+## Collecte the significant Genes and SNPs associated with malaria from to GWAS 2014 and 2018
 
 ```{r gwas_2014_2018}
-gwas2014 <- read_tsv("data/gwas/gwas2014.tsv")
-gwas2018 <- read_tsv("data/gwas/gwas2018.tsv")
+## Importing data from GWAS 2014 and 2018
+gwas2014 <- read_tsv("data/gwas/mgen_2014_signif_SNPs.tsv")
+gwas2018 <- read_tsv("data/gwas/ravhenall_2018_signif_SNPs.tsv")
+
+## Tranformation the data in data.frame
+gwas2014 <- as.data.frame(gwas2014)
+gwas2018 <- as.data.frame(gwas2018)
 
 ## Select a subset of fields for display in the report
-snp.gwas.fields <- c("Gene", "rsID", "Phenotype") 
-  
-## Display a small subset of the table
-gwas2014.table <- head(gwas2014[, snp.gwas.fields])
+gwas_gene_snp2014 <-  gwas2014[, c("gene", "rsid", "phenotype")]
+gwas_gene_snp2018 <- gwas2018[, c("gene", "rsid", "phenotype")]
 
-gwas2018.table <- head(gwas2018[, snp.gwas.fields])
-
-   
 ## Combine datset from GWAS 2014 and 2018
-gwas.2014.vs.2018 <- rbind(gwas2014.table, gwas2018.table)
-
-kable(gwas.2014.vs.2018)
+gwas_2014_vs_2018 <- rbind(gwas_gene_snp2014, gwas_gene_snp2018)
+#View(gwas_2014_vs_2018)
+kable(head(gwas_2014_vs_2018))
 
 ## Plot the interest genes
-print(ggplot(gwas.2014.vs.2018, aes(Phenotype)) + geom_bar() + coord_flip())
-print(ggplot(gwas.2014.vs.2018, aes(Gene)) + geom_bar() + coord_flip())
-```
-
-
-## Collect Genes/SNPs malaria association from to GWAS catalog
-
-Download the file that contains all associations with added ontology
-either by clicking 
-[this link](http://www.ebi.ac.uk/gwas/api/search/downloads/alternative), 
-or with the wget command:
-   
-```{bash wget_data, eval=FALSE}
-echo downloding GWAS catalog
-wget http://www.ebi.ac.uk/gwas/api/search/downloads/alternative
-mv alternative gwas_catalog.tsv
-mv gwas_catalog.tsv ${HOME}/Google\ Drive/These_Yvon_2018/malaria_rSNPs/data/gwas.catalog
-```
-
-
-### Reading the GWAS catalog
-
-```{r read_data, warning=FALSE, eval=TRUE, comment=NA}
-message("Reading GWAS catalog in tsv format")
-gwas <- read_tsv("data/gwas.catalog/gwas_catalog.tsv",na = c("","NA","NR"))
-gwas <- as.data.frame(gwas,stringsAsFactors = FALSE)
-#print(colnames(gwas))
-#print(dim(gwas))
-
-## Select the Genes/SNPs associated with malaria
-
-malaria.gwas <-
-  gwas %>% 
-  rename("disease_trait" = "DISEASE/TRAIT",
-         "pvalue" = "P-VALUE") %>% 
-  filter(disease_trait %in% c("Malaria",
-                              "Severe malaria",
-                              "Severe malaria (adjusted for sickle cell variant rs334)"))
-
-cat("Number of table rows before filtering step:",nrow(malaria.gwas))
-
-#View(malaria.gwas)
-
-## Select a subset of fields for display in the report
-  snp.fields <- c(
-    "chr" = "CHR_ID",
-    "gene" = "MAPPED_GENE",
-    "snp" = "SNPS",
-    "locus" = "REGION",
-    "phenotype" = "disease_trait",
-    "pvalue" = "pvalue",
-    "PMID" = "PUBMEDID"
-  ) 
-     
-  ## Display a small subset of the table
-  gwas.table <- head(malaria.gwas[, snp.fields])
-  names(gwas.table) <- names(snp.fields)
-   kable(gwas.table)
-   
-## Print the gwas.data plot
-print(ggplot(gwas.table, aes(gene)) + geom_bar() + coord_flip())
-   
-```
-
-
-### Malaria GWAS phenotypes summary plot
-
-```{R trait_summary_plot, fig.height=7.5, fig.width=7.5, eval=TRUE}
-
-print(ggplot(malaria.gwas, aes(disease_trait)) +
+#print(ggplot(gwas_2014_vs_2018, aes(phenotype)) + geom_bar() + coord_flip())
+print(ggplot(gwas_2014_vs_2018, aes(gene)) + 
         geom_bar() + 
         coord_flip() +
-        theme_minimal() +
-        theme(panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank()))
+        ggtitle("Genes of interest from to malaria GWAS (MGEN, 2014 and Ravhenall                  et al, 2018") +
+        xlab("Genes") +
+        ylab("Number of genes"))
+```
+
+**The malaria GWAS from to different country and African population provide `r nrow(gwas_2014_vs_2018)` significant SNPs.**
+
+### Tag SNPs
+
+The Tag SNPs are the result of the combinaison of the SNPs from DisGeNet and GWAS (2014, 2018)
+
+```{r disgenet_vs_gwas_2014_2018}
+## TagSNP-phenotype from to GWAS (2014 and 2018)
+GwasTagSnp <- gwas_2014_vs_2018[, c("rsid", "phenotype")]
+
+## TagSNP-phenotype from to disgenet
+DisgenetTagSnp <- as.data.frame(snp2populations[, c("c0.snpId", "c1.name")])
+
+## Rename the columns of DisgenetTagSnp variable
+names(DisgenetTagSnp) <- c("rsid", "phenotype")
+
+#View(DisgenetTagSnp)
+
+Disgenet_vs_gwas <- rbind(DisgenetTagSnp, GwasTagSnp)
+TagSnps <- unique(Disgenet_vs_gwas$rsid)
+
+tagsnps.file <- "tagsnps.txt"
+tagsnps.path <- file.path(dir.path["tagsnps"], tagsnps.file)
+write.table(x = TagSnps,
+              file = tagsnps.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
 ```
 
 
-### Significant malaria association SNPs from to GWAS catalog
+**We collected a set of the `r length (TagSnps)` Tag SNPs associated with different malaria phenotypes: [`r tagsnps.file`](`r tagsnps.path`)**
 
-```{r}
-signif.snps.catalog.gwas <-
-malaria.gwas %>% 
-  filter( as.numeric(pvalue) <= 5e-08)
-#View(signif.snps)
 
-kable(signif.snps.catalog.gwas[, c("CHR_ID", "MAPPED_GENE", "REGION" ,"SNPS" , "disease_trait", "pvalue", "PUBMEDID" )])
+
+# Haplotype collection
+
+We used the R HalpoR package which allows to recover SNPs in linkage Desequilibrium (LD) using HaploReg by specifying the population. We specified the African population and submitted the SNPs of interest obtained by the 3 requests above (DisGenet GWAS malaria 2014 and GWAS malaria 2018).
+
+
+```{r haplor}
+
+## Run HaploReg with the tag SNPs
+tagSnpsLdHaploreg <- queryHaploreg(query = TagSnps, ldThresh = 0.8, ldPop = "AFR", url = "http://archive.broadinstitute.org/mammals/haploreg/haploreg.php")
+
+## Export the full result table
+ 
+ ld_haplo_file <- "tag_snps_haplo_ld.tsv"
+ haplo_path <- file.path(dir.path["haploreg"], ld_haplo_file)
+  message("\tLD table\t", haplo_path)
+
+  write.table(x = tagSnpsLdHaploreg,
+              file = haplo_path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+  
+#kable(head(tagSnpsLdHaploreg))
+#View(tagSnpsLdHaploreg)
+  
+## Display a subset table from to haploreg
+subsetLd <- tagSnpsLdHaploreg[c("chr", 
+                                "GENCODE_name", 
+                                "rsID", 
+                                "ref", 
+                                "alt", 
+                                "query_snp_rsid", 
+                                "r2", 
+                                "AFR"
+                                )]
+kable(head(subsetLd))
 ```
+
+**We find `r length(unique(subsetLd$rsID))` LD SNPs with `r length (TagSnps)` Tag SNPs**
+
+
+## SNPs of interest (SOIs)
+
+The SOIs is the combinaison of the TagSNPs and the LD SNPs.
+
+```{r rsid_vs_ld_snps}
+
+LdTagsnps1 <- unique(tagSnpsLdHaploreg$rsID, tagSnpsLdHaploreg$query_snp_rsid)
+LdTagsnps <- as.data.frame(unique(LdTagsnps1))
+names(LdTagsnps) <- "rsid"
+LdTagsnps <- as.data.frame(LdTagsnps)
+
+#kable(head(LdTagsnps), caption = "Liste of SNPs of interest (SOI)", col.names = "rsID")
+
+## In our list of SOIs, these SNPs are merged in rs55868763 = rs1541254
+## rs79775818 = rs1541253, rs112685218 = rs8176733
+
+ LdTagsnps.data <-
+   LdTagsnps%>%
+   mutate(
+     rsid = as.character(rsid),
+     snp1 = str_detect(rsid, "rs55868763"),
+          rsid = ifelse(snp1 == TRUE, "rs1541254", rsid),
+     snp2 = str_detect(rsid, "rs79775818"),
+          rsid = ifelse(snp2 == TRUE, "rs1541253", rsid),
+     snp3 = str_detect(rsid, "rs112685218"),
+          rsid = ifelse(snp3 == TRUE, "rs8176733", rsid))
+    
+ #View(LdTagsnps.data)
+
+## Export the full result table
+ld.file <- "ldtagsnp.txt"
+ld.path <- file.path(dir.path["ldtagsnp"], ld.file)
+write.table(x = LdTagsnps,
+              file = ld.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+```
+
+**We are a total `r length(LdTagsnps1)` [`r ld.file`](`r ld.path`) SNPs of interest (SOIs)**
+
+
+
+## Regulons of Interest (ROIs)
+
+ We define the ROIs for the SNPs From the SOIs using the intersection with functional enhancers and promoters (from to HaploReg).
+ 
+```{r soi}
+## Selection of the ROI according to functional enhancers and promoters and the non-coding region.
+roi <- subset(tagSnpsLdHaploreg, 
+              Enhancer_histone_marks != ""
+              & Promoter_histone_marks != ""
+              & dbSNP_functional_annotation == "INT")
+#View(roi)
+
+## Display a subset LD SNPs in enhancer histone marks, promoters histone marks and non-condant region.
+
+ld.fields <- tagSnpsLdHaploreg[, c("chr",
+                                   "GENCODE_name",
+                                   "pos_hg38",
+                                   "r2",
+                                   "rsID",
+                                   "query_snp_rsid",
+                                   "ref",
+                                   "alt",
+                                   "AFR",
+                                   "dbSNP_functional_annotation",
+                                   "Promoter_histone_marks",
+                                   "Enhancer_histone_marks")]
+
+kable(head(ld.fields, caption = "Table of Regulons Of Interest (ROIs)"))
+
+```
+
+
+
+
+
 
 
