@@ -612,7 +612,31 @@ roi <- subset(tagSnpsLdHaploreg,
               Enhancer_histone_marks != ""
               & Promoter_histone_marks != ""
               & dbSNP_functional_annotation == "INT")
+
+## Plot of ROIs
+print(ggplot(roi, 
+             aes(GENCODE_name	)) + 
+             geom_bar() + 
+             coord_flip() +
+             ggtitle("Malaria genes as a function of SNPs withim promoters and                         enhancers histone marks and non-coding region") +
+             xlab("Genes") +
+             ylab("Count"))
 #View(roi)
+
+## Selection of the ROI according to functional enhancers and promoters, the non-coding region and the eQTL.
+roi1 <- subset(tagSnpsLdHaploreg, 
+              Enhancer_histone_marks != ""
+              & Promoter_histone_marks != ""
+              & dbSNP_functional_annotation == "INT"
+              & eQTL != "" & eQTL != ".")
+
+print(ggplot(roi1, 
+             aes(GENCODE_name	)) + 
+             geom_bar() + 
+             coord_flip() +
+             ggtitle("Malaria genes as a function of SNPs withim promoters and                         enhancers histone marks, non-coding region and eQTL") +
+             xlab("Genes") +
+             ylab("Count"))
 
 ## Display a subset LD SNPs in enhancer histone marks, promoters histone marks and non-condant region.
 
@@ -629,12 +653,60 @@ ld.fields <- tagSnpsLdHaploreg[, c("chr",
                                    "Promoter_histone_marks",
                                    "Enhancer_histone_marks")]
 
-kable(head(ld.fields, caption = "Table of Regulons Of Interest (ROIs)"))
-
+kable(head(ld.fields), caption = "Table of Regulons Of Interest (ROIs)")
 ```
 
+**According to the SNPs finded in non-conding region, enhancers and promoters histone marks, we selected a subset of `r nrow(roi)` Reguloms of interest (ROIs).**
+
+**If we considere also the eQTLs, the ROIs provide `r nrow(roi1)` SNPs.**
 
 
+# Analyse of Genes/SNPs from GWAS malaria
+
+```{r gwas_malaria}
+## Importing gwas malaria data
+gwasMalaria <- read.xls('data/gwasMalaria.xlsx', sheet = 1)
+
+## Barplot of malaria genes associted
+
+print(ggplot(gwasMalaria, 
+             aes(gene	)) + 
+             geom_bar() + 
+             coord_flip() +
+             ggtitle("Malaria genes from to GWAS") +
+             xlab("Genes") +
+             ylab("Count"))
+
+
+## Barplot of malaria phenotype associted
+
+print(ggplot(gwasMalaria, 
+             aes(diseaseTrait)) + 
+             geom_bar() + 
+             coord_flip() +
+             ggtitle("Malaria phenotype from to GWAS") +
+             xlab("Phenotype") +
+             ylab("Count"))
+
+## Selection LD SNPs using haploreg
+### Selection of the TagSNPs
+TagSNPs <- gwasMalaria$rsId
+
+### Run haploreg with the TagSNPS
+TagSNPs.ld <- queryHaploreg(query = TagSNPs, 
+                            ldThresh = 0.8, 
+                            ldPop = "AFR", 
+                            url = "http://archive.broadinstitute.org/mammals/haploreg/haploreg.php")
+
+## Selection of the ROI according to functional enhancers and promoters, the non-coding region and the eQTL.
+ROIs <- subset(TagSNPs.ld, 
+              Enhancer_histone_marks != ""
+              & Promoter_histone_marks != ""
+              & dbSNP_functional_annotation == "INT"
+              & eQTL != "" & eQTL != ".")
+
+
+```
 
 
 
